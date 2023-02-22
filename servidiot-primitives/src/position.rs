@@ -1,7 +1,7 @@
 //! Position primitives.
 
 use std::{
-    fmt::Debug,
+    fmt::{Debug, Display},
     ops::{Deref},
 };
 
@@ -129,10 +129,15 @@ impl Deref for CheckedBlockPosition {
 }
 
 /// Represents the position of a chunk.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct ChunkPosition {
     pub x: i32,
     pub z: i32
+}
+impl Display for ChunkPosition {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "ChunkPosition(x = {}, z = {})", self.x, self.z)
+    }
 }
 impl ChunkPosition {
     /// Creates a new `ChunkPosition` from

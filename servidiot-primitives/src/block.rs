@@ -3,7 +3,7 @@ use std::ops::Deref;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
 /// A block ID. Goes from
-/// `0` to `4096`.
+/// `0` to `4095`.
 pub struct BlockID(u16);
 impl Deref for BlockID {
     type Target = u16;
@@ -16,10 +16,10 @@ impl Deref for BlockID {
 impl BlockID {
 
     /// Creates a new `BlockID`.
-    /// If `block_id` is greater than 4096, 
+    /// If `block_id` is greater than 4095, 
     /// returns `None`.
     pub const fn new(block_id: u16) -> Option<Self> {
-        if block_id > 4096 {
+        if block_id > 4095 {
             None
         } else {
             Some(Self(block_id))

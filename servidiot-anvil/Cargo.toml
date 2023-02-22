@@ -9,3 +9,5 @@ edition = "2021"
 thiserror = "1.0"
 bitvec = "1.0"
 servidiot-primitives = { path = "../servidiot-primitives" }
+hematite-nbt = "0.5.2"
+serde = { version = "1", features = ["derive"] }

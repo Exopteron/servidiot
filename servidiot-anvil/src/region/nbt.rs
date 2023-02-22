@@ -1,0 +1,127 @@
+use nbt::Value;
+use serde::{Serialize, Deserialize};
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ChunkRoot {
+    /// Chunk data. 
+    #[serde(rename = "Level")]
+    pub level: Level
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Level {
+    /// X position of the chunk.
+    #[serde(rename = "xPos")]
+    pub x_position: i32,
+    /// Z position of the chunk.
+    #[serde(rename = "zPos")]
+    pub z_position: i32,
+    /// Tick when the chunk was last saved.
+    #[serde(rename = "LastUpdate")]
+    pub last_update: i64,
+    /// Unknown.
+    #[serde(rename = "LightPopulated")]
+    pub light_populated: bool,
+    /// Indicates whether the terrain in this chunk has been 
+    /// populated with special things. (Ores, special blocks, 
+    /// trees, dungeons, flowers, waterfalls, etc.) 
+    #[serde(rename = "TerrainPopulated")]
+    pub terrain_populated: bool,
+    /// Likely a chunk version tag.
+    #[serde(rename = "V")]
+    pub version: i8,
+    /// The cumulative number of ticks 
+    /// players have been in this chunk.
+    #[serde(rename = "InhabitedTime")]
+    pub inhabited_time: i64,
+    /// 256 bytes of biome data, one byte for 
+    /// each vertical column in the chunk.
+    #[serde(rename = "Biomes")]
+    pub biomes: Option<Vec<i8>>,
+    /// 16 × 16 heightmap data. 
+    #[serde(rename = "HeightMap")]
+    pub heightmap: Vec<i32>,
+    /// List of sections in this chunk.
+    #[serde(rename = "Sections")]
+    pub sections: Vec<Section>,
+    /// Each TAG_Compound in this list 
+    /// defines an entity in the chunk.
+    #[serde(rename = "Entities")]
+    pub entities: Vec<Value>,
+    /// Each TAG_Compound in this list 
+    /// defines a tile entity in the 
+    /// chunk.
+    #[serde(rename = "TileEntities")]
+    pub tile_entities: Vec<Value>,
+    /// Each TAG_Compound in this list is an 
+    /// "active" block in this chunk waiting 
+    /// to be updated. These are used to save 
+    /// the state of redstone machines, falling 
+    /// sand or water, and other activity. 
+    #[serde(rename = "TileTicks")]
+    pub tile_ticks: Option<Vec<TileTick>>
+
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Section {
+    /// The Y index (not coordinate) of this 
+    /// section. Range 0 to 15 (bottom to top), 
+    /// with no duplicates but some sections 
+    /// may be missing if empty.
+    #[serde(rename = "Y")]
+    pub y_index: i8,
+    /// 4096 bytes of block IDs defining the terrain. 
+    /// 8 bits per block, plus the bits from the 
+    /// below Add tag.
+    #[serde(rename = "Blocks")]
+    pub blocks: Vec<i8>,
+    /// May not exist. 2048 bytes of additional block 
+    /// ID data. The value to add to (combine with) 
+    /// the above block ID to form the true block ID 
+    /// in the range 0 to 4095. 4 bits per block. 
+    #[serde(rename = "Add")]
+    pub additional: Option<Vec<i8>>,
+    /// 2048 bytes of block data additionally defining 
+    /// parts of the terrain. 4 bits per block.
+    #[serde(rename = "Data")]
+    pub data: Vec<i8>,
+    /// 2048 bytes recording the amount of block-emitted 
+    /// light in each block. 4 bits per block.
+    #[serde(rename = "BlockLight")]
+    pub block_light: Vec<i8>,
+    /// 2048 bytes recording the amount of sunlight or 
+    /// moonlight hitting each block. 4 bits per block.
+    #[serde(rename = "SkyLight")]
+    pub sky_light: Vec<i8>
+}
+
+/// Tile Ticks represent block updates that need to happen 
+/// because they could not happen before the chunk was saved. 
+/// Examples reasons for tile ticks include redstone circuits 
+/// needing to continue updating, water and lava that should 
+/// continue flowing, recently placed sand or gravel that 
+/// should fall, etc. 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct TileTick {
+    /// The ID of the block as an integer.
+    #[serde(rename = "i")]
+    pub block_id: i32,
+    /// The number of ticks until processing 
+    /// should occur. May be negative when 
+    /// processing is overdue.
+    #[serde(rename = "t")]
+    pub ticks_until: i32,
+    /// If multiple tile ticks are scheduled 
+    /// for the same tick, tile ticks with lower 
+    /// ordering will be processed first. If they also 
+    /// have the same ordering, the order is unspecified.
+    #[serde(rename = "p")]
+    pub ordering: i32,
+    /// X position
+    pub x: i32,
+    /// Y position
+    pub y: i32,
+    /// Z position
+    pub z: i32
+}

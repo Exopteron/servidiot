@@ -148,6 +148,11 @@ impl ChunkPosition {
             z
         }
     }
+
+    /// The region this chunk resides in.
+    pub fn region(&self) -> RegionPosition {
+        RegionPosition::new((self.x >> 5) as i16, (self.z >> 5) as i16)
+    }
 }
 
 /// Represents the position of a region.

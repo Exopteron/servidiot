@@ -1,3 +1,5 @@
+use std::ops::{Deref, DerefMut};
+
 use nbt::Value;
 use serde::{Serialize, Deserialize};
 
@@ -7,6 +9,52 @@ pub struct ChunkRoot {
     #[serde(rename = "Level")]
     pub level: Level
 }
+
+/// Byte array helper type.
+#[repr(transparent)]
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(transparent)]
+pub struct ByteArray(
+    #[serde(serialize_with="nbt::i8_array")]
+    pub Vec<i8>
+);
+impl Deref for ByteArray {
+    type Target = Vec<i8>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl DerefMut for ByteArray {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+
+/// Int array helper type.
+#[repr(transparent)]
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(transparent)]
+pub struct IntArray(
+    #[serde(serialize_with="nbt::i32_array")]
+    pub Vec<i32>
+);
+
+impl Deref for IntArray {
+    type Target = Vec<i32>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl DerefMut for IntArray {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Level {
@@ -37,10 +85,10 @@ pub struct Level {
     /// 256 bytes of biome data, one byte for 
     /// each vertical column in the chunk.
     #[serde(rename = "Biomes")]
-    pub biomes: Option<Vec<i8>>,
+    pub biomes: Option<ByteArray>,
     /// 16 × 16 heightmap data. 
     #[serde(rename = "HeightMap")]
-    pub heightmap: Vec<i32>,
+    pub heightmap: IntArray,
     /// List of sections in this chunk.
     #[serde(rename = "Sections")]
     pub sections: Vec<Section>,
@@ -75,25 +123,26 @@ pub struct Section {
     /// 8 bits per block, plus the bits from the 
     /// below Add tag.
     #[serde(rename = "Blocks")]
-    pub blocks: Vec<i8>,
+    pub blocks: ByteArray,
     /// May not exist. 2048 bytes of additional block 
     /// ID data. The value to add to (combine with) 
     /// the above block ID to form the true block ID 
     /// in the range 0 to 4095. 4 bits per block. 
     #[serde(rename = "Add")]
-    pub additional: Option<Vec<i8>>,
+    
+    pub additional: Option<ByteArray>,
     /// 2048 bytes of block data additionally defining 
     /// parts of the terrain. 4 bits per block.
     #[serde(rename = "Data")]
-    pub data: Vec<i8>,
+    pub data: ByteArray,
     /// 2048 bytes recording the amount of block-emitted 
     /// light in each block. 4 bits per block.
     #[serde(rename = "BlockLight")]
-    pub block_light: Vec<i8>,
+    pub block_light: ByteArray,
     /// 2048 bytes recording the amount of sunlight or 
     /// moonlight hitting each block. 4 bits per block.
     #[serde(rename = "SkyLight")]
-    pub sky_light: Vec<i8>
+    pub sky_light: ByteArray
 }
 
 /// Tile Ticks represent block updates that need to happen 

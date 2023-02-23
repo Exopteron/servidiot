@@ -33,6 +33,12 @@ impl BlockPosition {
     pub fn as_tuple(&self) -> (i32, i32, i32) {
         (self.x, self.y, self.z)
     }
+
+    /// Returns the chunk this block 
+    /// position resides in.
+    pub fn chunk(&self) -> ChunkPosition {
+        ChunkPosition::new(self.x >> 4, self.z >> 4)
+    }
 }
 
 /// Represents what world and dimension an object resides in.
@@ -156,6 +162,7 @@ impl ChunkPosition {
 }
 
 /// Represents the position of a region.
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct RegionPosition {
     pub x: i16,
     pub z: i16

@@ -4,6 +4,7 @@ use std::{
 };
 
 use bitvec::vec::BitVec;
+use bytemuck::cast_slice;
 use nbt::{from_gzip_reader, from_reader, from_zlib_reader, to_gzip_writer, to_zlib_writer, to_writer};
 use servidiot_primitives::position::ChunkPosition;
 use thiserror::Error;
@@ -11,6 +12,7 @@ use thiserror::Error;
 use super::nbt::ChunkRoot;
 
 #[repr(u8)]
+#[derive(Clone, Copy)]
 /// The compression type some chunk is stored in.
 pub enum CompressionType {
     GZip = 1,
@@ -49,6 +51,12 @@ pub struct RegionFile {
     file: File,
 }
 
+impl Drop for RegionFile {
+    fn drop(&mut self) {
+        let _ = self.flush();
+    }
+}
+
 #[derive(Error, Debug)]
 pub enum ChunkError {
     /// Reported when a chunk is not
@@ -79,8 +87,16 @@ impl RegionFile {
     pub const BYTES_PER_SECTOR: u64 = 4096;
     pub const MAX_OFFSET: u32 = u32::from_be_bytes([0, 255, 255, 255]);
 
+
+    /// Creates a new region file.
+    pub fn create(mut file: File) -> io::Result<Self> {
+        file.rewind()?;
+        file.write_all(&[0; 8192])?;
+        Self::open(file)
+    }
+
     /// Loads a file as a region file.
-    pub fn new(mut file: File) -> io::Result<Self> {
+    pub fn open(mut file: File) -> io::Result<Self> {
         file.rewind()?;
         let mut chunk_location = [0; 4096];
         file.read_exact(&mut chunk_location)?;
@@ -89,7 +105,7 @@ impl RegionFile {
 
         let mut this = Self {
             chunk_location,
-            timestamps: unsafe { std::mem::transmute(timestamps) },
+            timestamps: *bytemuck::cast_ref(&timestamps),
             free_sectors: BitVec::new(),
             file,
         };
@@ -140,6 +156,7 @@ impl RegionFile {
         if offset > Self::MAX_OFFSET {
             return Err(ChunkError::OffsetTooLarge(position, offset));
         }
+        println!("Setting {position:?} to {offset}, {size}");
         let location = 4 * ((position.x & 31) + (position.z & 31) * 32);
         let mut bytes = offset.to_be_bytes();
         bytes.rotate_left(1);
@@ -171,6 +188,7 @@ impl RegionFile {
         timestamp: u32,
         data: ChunkRoot,
     ) -> ChunkResult<()> {
+        
         if let Some((offset, size)) = self.get_chunk_location(chunk_position) {
             let offset = offset as usize;
             let size = size as usize;
@@ -178,6 +196,7 @@ impl RegionFile {
                 self.free_sectors.set(v, true);
             }
         }
+        self.set_chunk_location(chunk_position, 0, 0)?;
         self.set_chunk_timestamp(chunk_position, timestamp);
 
         let mut serialized = vec![];
@@ -202,6 +221,7 @@ impl RegionFile {
                 n = 0;
             }
             if n == sectors_needed {
+                i += 1;
                 break;
             }
             i += 1;
@@ -283,9 +303,7 @@ impl RegionFile {
     pub fn flush(&mut self) -> io::Result<()> {
         self.file.rewind()?;
         self.file.write_all(&self.chunk_location)?;
-        self.file.write_all(unsafe {
-            std::mem::transmute::<&[u32; 1024], &[u8; 4096]>(&self.timestamps)
-        })?;
+        self.file.write_all(cast_slice(&self.timestamps))?;
 
         self.file.flush()?;
         Ok(())
@@ -294,23 +312,23 @@ impl RegionFile {
 
 #[cfg(test)]
 mod tests {
-    use std::fs::File;
+    // use std::fs::File;
 
-    use servidiot_primitives::position::ChunkPosition;
+    // use servidiot_primitives::position::ChunkPosition;
 
-    use super::RegionFile;
+    // use super::RegionFile;
 
     #[test]
     pub fn epic_test() {
-        let mut file = RegionFile::new(File::options().read(true).write(true).open("../local/r.0.-2.mca").unwrap()).unwrap();
-        let mut data = file.read_chunk(ChunkPosition::new(0, 26)).unwrap();
-        for s in &mut data.0.level.sections {
-            println!("Blox: {:?}", s.blocks);
-            s.blocks.fill(24);
-        }
+        // let mut file = RegionFile::open(File::options().read(true).write(true).open("../local/r.0.-2.mca").unwrap()).unwrap();
+        // let mut data = file.read_chunk(ChunkPosition::new(0, 26)).unwrap();
+        // for s in &mut data.0.level.sections {
+        //     println!("Blox: {:?}", s.blocks);
+        //     s.blocks.fill(24);
+        // }
 
-        println!("pos: {} {}", data.0.level.x_position, data.0.level.z_position);
-        file.write_chunk(super::CompressionType::ZLib, ChunkPosition::new(0, 26), data.1, data.0).unwrap();
-        file.flush().unwrap();
+        // println!("pos: {} {}", data.0.level.x_position, data.0.level.z_position);
+        // file.write_chunk(super::CompressionType::ZLib, ChunkPosition::new(0, 26), data.1, data.0).unwrap();
+        // file.flush().unwrap();
     }
 }

@@ -1,11 +1,13 @@
 use std::{fs::File, io, path::PathBuf, time::SystemTime};
 
 use crate::nbt::level::LevelRoot;
+use crate::nbt::player::PlayerData;
 use ::nbt::{from_gzip_reader, to_gzip_writer};
 use ahash::AHashMap;
 use region::{file::CompressionType, nbt::ChunkRoot, RegionManager, RegionManagerError};
 use servidiot_primitives::position::ChunkPosition;
 use thiserror::Error;
+use uuid::Uuid;
 
 pub mod nbt;
 pub mod region;
@@ -36,6 +38,35 @@ impl WorldManager {
             directory,
         }
     }
+
+
+    /// Attempt to load playerdata for some UUID.
+    pub fn load_player_data(&self, uuid: &Uuid) -> WorldManagerResult<Option<PlayerData>> {
+        let mut dir = self.directory.clone();
+        dir.push(format!("{}.dat", uuid.as_hyphenated()));
+        if !dir.try_exists().map_err(WorldManagerError::IOError)? {
+            return Ok(None);
+        }
+        let file = File::open(dir).map_err(WorldManagerError::IOError)?;
+        let v = from_gzip_reader(file).map_err(WorldManagerError::NBTError)?;
+        Ok(Some(v))
+    } 
+
+
+    /// Save playerdata to disk.
+    pub fn save_player_data(&mut self, uuid: &Uuid, value: &PlayerData) -> WorldManagerResult<()> {
+        let mut dir = self.directory.clone();
+        dir.push(format!("{}.dat", uuid.as_hyphenated()));
+        let mut file = File::options()
+            .write(true)
+            .create(true)
+            .open(dir)
+            .map_err(WorldManagerError::IOError)?;
+        to_gzip_writer(&mut file, &value, None).map_err(WorldManagerError::NBTError)?;
+        Ok(())
+    }
+
+
 
     /// Flush all caches.
     pub fn flush_cache(&mut self) -> WorldManagerResult<()> {
@@ -123,6 +154,7 @@ mod tests {
     use std::{path::PathBuf, str::FromStr};
 
     use servidiot_primitives::position::BlockPosition;
+    use uuid::Uuid;
 
     use crate::{
         WorldManager,
@@ -140,6 +172,8 @@ mod tests {
 
         let block = BlockPosition::new(-1759, 5, 459);
 
+        let x = file.load_player_data(&Uuid::parse_str("").unwrap()).unwrap();
+        println!("Data: {x:?}");
         let (mut data, _) = file.load_chunk(0, block.chunk()).unwrap();
         println!("X{:?} Z{:?}", data.level.x_position, data.level.z_position);
         let section = &mut data.level.sections[(block.y / 16) as usize];

@@ -1,7 +1,7 @@
 use std::sync::atomic::{AtomicI32, Ordering};
 
 /// An entity ID.
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct NetworkID(pub i32);
 
 impl NetworkID {

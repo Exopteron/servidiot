@@ -59,11 +59,12 @@ macro_rules! packet_enum {
 
         impl crate::io::Readable for $enum_ident {
             fn read_from(data: &mut std::io::Cursor<&[u8]>) -> std::result::Result<Self, anyhow::Error> {
-                match crate::io::primitives::VarInt::read_from(data)?.0 {
+                let vint = crate::io::primitives::VarInt::read_from(data)?.0;
+                match vint {
                     $(
                         $id => Ok(Self::$packet_ident($packet_ident::read_from(data)?)),
                     )*
-                    n => anyhow::bail!("unknown packet ID {n} for {:?}!", std::any::type_name::<Self>())
+                    n => anyhow::bail!("unknown packet ID 0x{n:x} for {:?}!", std::any::type_name::<Self>())
                 }
             }
         }

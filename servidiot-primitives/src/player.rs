@@ -26,4 +26,54 @@ pub struct PlayerAbilities {
     #[serde(rename = "instabuild")]
     pub instabreak: bool
 }
+#[derive(Debug, Clone, Copy)]
+pub enum GamemodeType {
+    Survival,
+    Creative,
+    Adventure
+}
 
+/// The gamemode this player is in.
+#[derive(Debug, Clone, Copy)]
+pub struct Gamemode {
+    pub ty: GamemodeType,
+    pub hardcore: bool
+}
+impl Gamemode {
+    pub fn new(ty: GamemodeType, hardcore: bool) -> Self {
+        Self {
+            ty,
+            hardcore
+        }
+    }
+
+    pub fn decode(mut n: u8) -> Option<Self> {
+        let mut hardcore = false;
+        if (n & 0x8) != 0 {
+            n &= !0x8;
+            hardcore = true;
+        }
+        let ty = match n {
+            0 => Some(GamemodeType::Survival),
+            1 => Some(GamemodeType::Creative),
+            2 => Some(GamemodeType::Adventure),
+            _ => None
+        }?;
+        Some(Self {
+            ty,
+            hardcore
+        })
+    }
+
+    pub fn encode(&self) -> u8 {
+        let mut n = match self.ty {
+            GamemodeType::Survival => 0,
+            GamemodeType::Creative => 1,
+            GamemodeType::Adventure => 2
+        };
+        if self.hardcore {
+            n |= 0x8;
+        }
+        n
+    }
+}

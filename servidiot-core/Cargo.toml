@@ -1,0 +1,18 @@
+[package]
+name = "servidiot-core"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+thiserror = "1"
+anyhow = "1"
+servidiot-anvil = { path = "../servidiot-anvil" }
+servidiot-network = { path = "../servidiot-network" }
+servidiot-primitives = { path = "../servidiot-primitives" }
+hecs = "0.9"
+ahash = "0.8"
+parking_lot = "0.12.1"
+log = "0.4"

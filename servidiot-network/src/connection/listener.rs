@@ -36,11 +36,14 @@ impl Listener {
     /// Internal run method.
     async fn run(self) {
         loop {
+            println!("rannin");
             if self.new_players.is_disconnected() {
+                println!("bak");
                 break;
             }
             match self.listener.accept().await {
                 Ok((connection, addr)) => {
+                    log::info!("Got connection from {:?}", addr);
                     let worker = Worker::new(connection, addr, self.server_state.clone(), self.new_players.clone());
                     tokio::spawn(async move {
                         if let Err(e) = worker.run().await {

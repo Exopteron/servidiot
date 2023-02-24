@@ -49,6 +49,31 @@ pub struct Location {
     pub dimension: i32,
 }
 
+
+/// Represents the position of an entity.
+#[derive(Clone, Copy, PartialEq, PartialOrd, Debug)]
+pub struct Position {
+    pub x: f64,
+    pub y: f64,
+    pub z: f64,
+    pub yaw: f32,
+    pub pitch: f32,
+    pub on_ground: bool
+}
+
+impl Position {
+    pub fn new(x: f64, y: f64, z: f64, yaw: f32, pitch: f32, on_ground: bool) -> Self {
+        Self {
+            x,
+            y,
+            z,
+            yaw,
+            pitch,
+            on_ground,
+        }
+    }
+}
+
 pub const MIN_BLOCK_X: i32 = -30_000_000;
 pub const MAX_BLOCK_X: i32 = 30_000_000;
 pub const MIN_BLOCK_Y: i32 = 0;

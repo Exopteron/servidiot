@@ -1,5 +1,6 @@
 use anyhow::bail;
-use byteorder::{ReadBytesExt, WriteBytesExt};
+use byteorder::{ReadBytesExt, WriteBytesExt, BigEndian};
+use servidiot_primitives::player::Gamemode;
 
 use super::{Readable, Serializable, Writable};
 
@@ -62,6 +63,49 @@ impl Writable for u8 {
         Ok(())
     }
 }
+
+
+
+
+impl Readable for f32 {
+    fn read_from(data: &mut Cursor<&[u8]>) -> anyhow::Result<Self> {
+        Ok(data.read_f32::<BigEndian>()?)
+    }
+}
+impl Readable for f64 {
+    fn read_from(data: &mut Cursor<&[u8]>) -> anyhow::Result<Self> {
+        Ok(data.read_f64::<BigEndian>()?)
+    }
+}
+impl Writable for f32 {
+    fn write_to(&self, target: &mut Vec<u8>) -> anyhow::Result<()> {
+        target.write_f32::<BigEndian>(*self)?;
+        Ok(())
+    }
+}
+impl Writable for f64 {
+    fn write_to(&self, target: &mut Vec<u8>) -> anyhow::Result<()> {
+        target.write_f64::<BigEndian>(*self)?;
+        Ok(())
+    }
+}
+
+impl Readable for bool {
+    fn read_from(data: &mut Cursor<&[u8]>) -> anyhow::Result<Self> {
+        Ok(data.read_u8()? != 0)
+    }
+}
+impl Writable for bool {
+    fn write_to(&self, target: &mut Vec<u8>) -> anyhow::Result<()> {
+        target.write_u8(*self as u8)?;
+        Ok(())
+    }
+}
+
+
+
+
+
 #[derive(Debug)]
 pub struct VarInt(pub i32);
 impl VarInt {
@@ -130,17 +174,38 @@ fn varint_test() {
         v
     }
 
-    assert_eq!(varint(0), [0x00]);
-    assert_eq!(varint(1), [0x01]);
-    assert_eq!(varint(2), [0x02]);
-    assert_eq!(varint(127), [0x7f]);
-    assert_eq!(varint(128), [ 	0x80, 0x01]);
-    assert_eq!(varint(255), [ 	0xff, 0x01]);
-    assert_eq!(varint(25565), [0xdd, 0xc7, 0x01]);
-    assert_eq!(varint(2097151), [ 	0xff, 0xff, 0x7f]);
-    assert_eq!(varint(2147483647), [ 	0xff, 0xff, 0xff, 0xff, 0x07]);
-    assert_eq!(varint(-1), [ 	0xff, 0xff, 0xff, 0xff, 0x0f]);
-    assert_eq!(varint(-2147483648), [0x80, 0x80, 0x80, 0x80, 0x08]);
+    macro_rules! test {
+        ($a:expr, $b:expr) => {
+            {
+                assert_eq!(varint($a), $b);
+                let n = $b.to_vec();
+                let mut c = Cursor::new(n.as_slice());
+                let v = VarInt::read_from(&mut c).unwrap();
+                assert_eq!(v.0, $a);
+            }       
+        };
+    }
+
+    let data = [42, 6, 64, 36, 0, 0];
+    {
+        let n = data.to_vec();
+        let mut c = Cursor::new(n.as_slice());
+        let v = VarInt::read_from(&mut c).unwrap();
+        assert_eq!(v.0, 42);
+    }
+    test!(0, [0x00]);
+    test!(1, [0x01]);
+    test!(2, [0x02]);
+    test!(127, [0x7f]);
+    test!(128, [ 	0x80, 0x01]);
+    test!(255, [ 	0xff, 0x01]);
+    test!(25565, [0xdd, 0xc7, 0x01]);
+    test!(2097151, [ 	0xff, 0xff, 0x7f]);
+    test!(2147483647, [ 	0xff, 0xff, 0xff, 0xff, 0x07]);
+    test!(-1, [ 	0xff, 0xff, 0xff, 0xff, 0x0f]);
+    test!(-2147483648, [0x80, 0x80, 0x80, 0x80, 0x08]);
+
+    
 }
 
 #[derive(Debug)]
@@ -205,5 +270,21 @@ impl Readable for String {
 impl Writable for String {
     fn write_to(&self, target: &mut Vec<u8>) -> anyhow::Result<()> {
         VarIntPrefixedByteArray::new(self.as_bytes().to_vec()).write_to(target)
+    }
+}
+
+impl Readable for Gamemode {
+    fn read_from(data: &mut Cursor<&[u8]>) -> anyhow::Result<Self> {
+        let n = u8::read_from(data)?;
+        if let Some(v) = Self::decode(n) {
+            Ok(v)
+        } else {
+            bail!("bad gamemode")
+        }
+    }
+}
+impl Writable for Gamemode {
+    fn write_to(&self, target: &mut Vec<u8>) -> anyhow::Result<()> {
+        self.encode().write_to(target)
     }
 }

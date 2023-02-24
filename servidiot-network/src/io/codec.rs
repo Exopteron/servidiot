@@ -1,6 +1,6 @@
 use std::io::Cursor;
 
-use self::cryptor::Cryptor;
+pub use self::cryptor::Cryptor;
 
 use super::{Writable, VarInt, Readable};
 
@@ -44,14 +44,16 @@ impl MinecraftCodec {
         Ok(())
     }
 
-    /// Accept some data in.
-    pub fn accept_data(&mut self, data: &[u8]) {
+    /// Accept some data in. Returns a view of 
+    /// the processed data.
+    pub fn accept_data(&mut self, data: &[u8]) -> &[u8] {
         let len = self.received_buf.len();
         let new_len = len + data.len();
         self.received_buf.extend_from_slice(data);
         if let Some(c) = &mut self.cryptor {
             c.decrypt(&mut self.received_buf[len..new_len]);
         }
+        &self.received_buf[len..new_len]
     }
 
     /// Try to read a packet. Returns `None` if
@@ -62,17 +64,18 @@ impl MinecraftCodec {
         if let Ok(v) = VarInt::read_from(&mut cursor) {
             let packet_length = v.0.try_into()?;
             if cursor.remaining_slice().len() >= packet_length {
-                println!("cursorreamin {}", cursor.remaining_slice().len());
                 // we have enough data
+
+                let varint_length = self.received_buf.len() - cursor.remaining_slice().len();
 
                 // read the packet
                 let packet = P::read_from(&mut cursor)?;
 
 
                 // shrink the received buffer
-                let end_of_packet = (self.received_buf.len() - cursor.remaining_slice().len()) + packet_length;
+                let end_of_packet = varint_length + packet_length;
                 let new_len = self.received_buf.len().saturating_sub(end_of_packet);
-                if end_of_packet < self.received_buf.len() {
+                if end_of_packet <= self.received_buf.len() {
                     self.received_buf.copy_within(end_of_packet.., 0);
                     self.received_buf.truncate(new_len);
                 } else {
@@ -89,6 +92,7 @@ impl MinecraftCodec {
         Ok(None)
     }
 }
+
 
 
 mod cryptor {
@@ -124,6 +128,7 @@ mod cryptor {
                     target,
                 )
             };
+            assert_eq!(x.len(), target.len());
             self.decryptor.decrypt_blocks_mut(x);
         }
 
@@ -135,6 +140,7 @@ mod cryptor {
                     target,
                 )
             };
+            assert_eq!(x.len(), target.len());
             self.encryptor.encrypt_blocks_mut(x);
         }
     }

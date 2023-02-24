@@ -1,4 +1,4 @@
-use std::{net::SocketAddr, sync::Arc, io};
+use std::{io, net::SocketAddr, sync::Arc};
 
 use anyhow::bail;
 use tokio::{
@@ -9,7 +9,11 @@ use tokio::{
     },
 };
 
-use crate::io::{codec::MinecraftCodec, Readable, Writable, packet::server::login::{ServerLoginPacket, Disconnect}};
+use crate::io::{
+    codec::MinecraftCodec,
+    packet::server::login::{Disconnect, ServerLoginPacket},
+    Readable, Writable,
+};
 
 use self::handshake::ConnectionResult;
 
@@ -19,7 +23,7 @@ mod handshake;
 
 /// A worker for a single client.
 pub struct Worker {
-    _addr: SocketAddr,
+    addr: SocketAddr,
     server_state: Arc<ServerState>,
     new_player_sender: flume::Sender<NewPlayer>,
     reader: Reader,
@@ -35,7 +39,7 @@ impl Worker {
     ) -> Self {
         let (reader, writer) = split_stream(stream);
         Self {
-            _addr: addr,
+            addr,
             server_state,
             reader,
             writer,
@@ -58,12 +62,10 @@ impl Worker {
                     let new_player = NewPlayer {
                         profile: profile.clone(),
                         sender: send1,
-                        receiver: recv2
+                        receiver: recv2,
                     };
 
                     self.new_player_sender.send_async(new_player).await?;
-
-
 
                     tokio::select! {
                         x = self.reader.run(send2) => {
@@ -79,9 +81,11 @@ impl Worker {
             },
             Err(e) => {
                 log::error!("Error: {:?}", e);
-                self.writer.write(ServerLoginPacket::Disconnect(Disconnect {
-                    data: format!(r#"{{"text": "{e:?}"}}"#)
-                })).await?;
+                self.writer
+                    .write(ServerLoginPacket::Disconnect(Disconnect {
+                        data: format!(r#"{{"text": "{e:?}"}}"#),
+                    }))
+                    .await?;
             }
         }
         Ok(())
@@ -114,7 +118,10 @@ pub struct Reader {
 
 impl Reader {
     /// Run this reader.
-    pub async fn run<P: Readable + Send + Sync + 'static>(mut self, sender: flume::Sender<P>) -> anyhow::Result<!> {
+    pub async fn run<P: Readable + Send + Sync + 'static>(
+        mut self,
+        sender: flume::Sender<P>,
+    ) -> anyhow::Result<!> {
         loop {
             let v = self.read().await?;
             sender.send_async(v).await?;
@@ -129,7 +136,7 @@ impl Reader {
                 Ok(v) if v == 0 => bail!("EOF"),
                 Ok(v) => v,
                 Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => continue,
-                Err(e) => return Err(e.into())
+                Err(e) => return Err(e.into()),
             };
             self.codec.accept_data(&self.buf[..read]);
             if let Some(packet) = self.codec.read_packet()? {
@@ -148,7 +155,10 @@ pub struct Writer {
 
 impl Writer {
     /// Run this reader in a separate task.
-    pub async fn run<P: Writable + Send + Sync + 'static>(mut self, receiver: flume::Receiver<P>) -> anyhow::Result<!> {
+    pub async fn run<P: Writable + Send + Sync + 'static>(
+        mut self,
+        receiver: flume::Receiver<P>,
+    ) -> anyhow::Result<!> {
         loop {
             let v = receiver.recv_async().await?;
             self.write(v).await?;
@@ -158,6 +168,7 @@ impl Writer {
     /// Write a packet to this writer.
     pub async fn write<P: Writable>(&mut self, value: P) -> anyhow::Result<()> {
         self.codec.write_packet(value, &mut self.writing_buf)?;
+        log::debug!("Writing {:?}", self.writing_buf);
         self.writer.write_all(&self.writing_buf).await?;
         self.writing_buf.truncate(0);
         Ok(())

@@ -9,6 +9,7 @@ edition = "2021"
 anyhow = "1"
 byteorder = "1"
 servidiot-yggdrasil = { path = "../servidiot-yggdrasil" }
+servidiot-primitives = { path = "../servidiot-primitives" }
 aes = "0.8.2"
 cfb8 = "0.8.1"
 tokio = { version = "1", features = ["full"] }
@@ -18,3 +19,5 @@ rsa = "0.8.1"
 log = "0.4"
 rand = "0.8"
 fnv = "1"
+bitflags = "1"
+uuid = { version = "1", features = ["serde"] }

@@ -1,0 +1,20 @@
+[package]
+name = "servidiot-network"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1"
+byteorder = "1"
+servidiot-yggdrasil = { path = "../servidiot-yggdrasil" }
+aes = "0.8.2"
+cfb8 = "0.8.1"
+tokio = { version = "1", features = ["full"] }
+thiserror = "1"
+flume = "0.10"
+rsa = "0.8.1"
+log = "0.4"
+rand = "0.8"
+fnv = "1"

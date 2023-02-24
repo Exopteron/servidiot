@@ -160,14 +160,14 @@ impl Deref for CheckedBlockPosition {
 }
 
 /// Represents the position of a chunk.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ChunkPosition {
     pub x: i32,
     pub z: i32
 }
 impl Display for ChunkPosition {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "ChunkPosition(x = {}, z = {})", self.x, self.z)
+        write!(f, "ChunkPosition(x = {}, z = {})", self.x, self.z)
     }
 }
 impl ChunkPosition {

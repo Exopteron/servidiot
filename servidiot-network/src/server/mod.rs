@@ -33,7 +33,7 @@ impl Server {
         let mut rng = rand::thread_rng();
         let bits = 1024;
         let server_state = ServerState {
-            rsa_key: RsaPrivateKey::new(&mut rng, bits).unwrap()
+            rsa_key: RsaPrivateKey::new(&mut rng, bits).unwrap(),
         };
         let server_state = Arc::new(server_state);
         let listener = Listener::bind(addr, send, server_state.clone()).await?;
@@ -50,11 +50,18 @@ impl Server {
         let mut ids = vec![];
         for v in self.new_clients.try_iter() {
             let id = NetworkID::new();
-            self.clients.insert(id, Client { profile: v.profile, id, sender: v.sender, receiver: v.receiver });
+            self.clients.insert(
+                id,
+                Client {
+                    profile: v.profile,
+                    id,
+                    sender: v.sender,
+                    receiver: v.receiver,
+                },
+            );
             ids.push(id);
         }
         ids
-
     }
     /// Removes a client from the list.
     pub fn remove_client(&mut self, c: NetworkID) -> bool {

@@ -2,6 +2,7 @@ use std::ops::{Deref, DerefMut};
 
 use nbt::Value;
 use serde::{Serialize, Deserialize};
+use servidiot_primitives::nibble_vec::NibbleVec;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ChunkRoot {
@@ -130,19 +131,19 @@ pub struct Section {
     /// in the range 0 to 4095. 4 bits per block. 
     #[serde(rename = "Add")]
     
-    pub additional: Option<ByteArray>,
+    pub additional: Option<NibbleVec>,
     /// 2048 bytes of block data additionally defining 
     /// parts of the terrain. 4 bits per block.
     #[serde(rename = "Data")]
-    pub data: ByteArray,
+    pub data: NibbleVec,
     /// 2048 bytes recording the amount of block-emitted 
     /// light in each block. 4 bits per block.
     #[serde(rename = "BlockLight")]
-    pub block_light: ByteArray,
+    pub block_light: NibbleVec,
     /// 2048 bytes recording the amount of sunlight or 
     /// moonlight hitting each block. 4 bits per block.
     #[serde(rename = "SkyLight")]
-    pub sky_light: ByteArray
+    pub sky_light: NibbleVec
 }
 
 /// Tile Ticks represent block updates that need to happen 

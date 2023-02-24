@@ -14,8 +14,6 @@ pub mod region;
 pub struct WorldManager {
     /// The world directory.
     directory: PathBuf,
-    /// Dimension cache.
-    dimensions: AHashMap<i32, RegionManager>,
 }
 
 #[derive(Error, Debug)]
@@ -32,7 +30,6 @@ pub type WorldManagerResult<T> = std::result::Result<T, WorldManagerError>;
 impl WorldManager {
     pub fn open(directory: PathBuf) -> Self {
         Self {
-            dimensions: Default::default(),
             directory,
         }
     }
@@ -66,59 +63,17 @@ impl WorldManager {
 
 
 
-    /// Flush all caches.
-    pub fn flush_cache(&mut self) -> WorldManagerResult<()> {
-        for (_, mut v) in std::mem::take(&mut self.dimensions) {
-            v.flush_cache().map_err(WorldManagerError::RegionError)?;
-        }
-        Ok(())
-    }
-
-    /// Loads a dimension. Returns `true` if it
-    /// was already loaded.
-    fn load_dimension(&mut self, dimension: i32) -> WorldManagerResult<bool> {
-        if self.dimensions.contains_key(&dimension) {
-            return Ok(true);
-        }
+    /// Loads a dimension.
+    pub fn load_dimension(&mut self, dimension: i32) -> WorldManagerResult<RegionManager> {
         let mut dir = self.directory.clone();
         if dimension != 0 {
             dir.push(format!("DIM{dimension}"));
         }
         dir.push("region");
         std::fs::create_dir_all(&dir).map_err(WorldManagerError::IOError)?;
-        self.dimensions
-            .insert(dimension, RegionManager::new(dir, CompressionType::ZLib));
-        Ok(false)
+        Ok(RegionManager::new(dir, CompressionType::ZLib))
     }
 
-    /// Saves a chunk.
-    pub fn save_chunk(
-        &mut self,
-        dimension: i32,
-        position: ChunkPosition,
-        data: ChunkRoot,
-    ) -> WorldManagerResult<()> {
-        self.load_dimension(dimension)?;
-        let Some(dim) = self.dimensions.get_mut(&dimension) else {
-            unreachable!()
-        };
-        dim.save_chunk(position, data)
-            .map_err(WorldManagerError::RegionError)
-    }
-
-    /// Loads a chunk.
-    pub fn load_chunk(
-        &mut self,
-        dimension: i32,
-        position: ChunkPosition,
-    ) -> WorldManagerResult<(ChunkRoot, SystemTime)> {
-        self.load_dimension(dimension)?;
-        let Some(dim) = self.dimensions.get_mut(&dimension) else {
-            unreachable!()
-        };
-        dim.load_chunk(position)
-            .map_err(WorldManagerError::RegionError)
-    }
 
     /// Load the level.dat from disk. Returns `None`
     /// if it is not present.
@@ -166,13 +121,15 @@ mod tests {
             )
             .unwrap(),
         );
+
+        let mut world = file.load_dimension(0).unwrap();
         println!("Level.dat: {:#?}", file.load_level_dat().unwrap());
 
         let block = BlockPosition::new(-1759, 5, 459);
 
         let x = file.load_player_data(&Uuid::parse_str("").unwrap()).unwrap();
         println!("Data: {x:?}");
-        let (mut data, _) = file.load_chunk(0, block.chunk()).unwrap();
+        let (mut data, _) = world.load_chunk(block.chunk()).unwrap();
         println!("X{:?} Z{:?}", data.level.x_position, data.level.z_position);
         let section = &mut data.level.sections[(block.y / 16) as usize];
 
@@ -183,7 +140,7 @@ mod tests {
         //let position = (y * 16 + z) * 16 + x;
 
         section.blocks.fill(137u8 as i8);
-        file.save_chunk(0, block.chunk(), data).unwrap();
-        file.flush_cache().unwrap();
+        world.save_chunk(block.chunk(), data).unwrap();
+        world.flush_cache().unwrap();
     }
 }

@@ -1,5 +1,6 @@
 [workspace]
 members = [
     "servidiot-primitives",
-    "servidiot-anvil"
+    "servidiot-anvil",
+    "servidiot-yggdrasil"
 ]

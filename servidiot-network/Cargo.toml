@@ -21,3 +21,4 @@ rand = "0.8"
 fnv = "1"
 bitflags = "1"
 uuid = { version = "1", features = ["serde"] }
+miniz_oxide = "0.7.1"

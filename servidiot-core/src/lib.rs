@@ -5,6 +5,7 @@ pub use servidiot_network::server::Server;
 
 
 pub mod ecs;
+pub(crate) mod world;
 
 pub struct MinecraftServer {
     /// The ECS.

@@ -16,3 +16,6 @@ hecs = "0.9"
 ahash = "0.8"
 parking_lot = "0.12.1"
 log = "0.4"
+flume = "0.10"
+serde = { version = "1", features = ["derive"] }
+hematite-nbt = "0.5.2"

@@ -23,7 +23,7 @@ impl MinecraftServer {
         resources.insert(server);
         let ecs = Ecs::new();
         let mut systems = SystemExecutor::new();
-        ecs::systems::register_systems(&mut systems);
+        ecs::systems::register_systems(&mut systems, &mut resources);
 
         Ok(Self {
             resources: Arc::new(resources),

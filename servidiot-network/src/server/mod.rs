@@ -1,9 +1,9 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::{Instant, Duration}, cell::Cell};
 
 use anyhow::bail;
 use fnv::FnvHashMap;
 use rsa::RsaPrivateKey;
-use servidiot_primitives::{chunk::Chunk, player::Gamemode, position::Position, nibble_vec::NibbleVec};
+use servidiot_primitives::{chunk::{Chunk, store::ChunkStore, section::ChunkSection}, player::Gamemode, position::{Position, ChunkPosition}, nibble_vec::NibbleVec};
 use servidiot_yggdrasil::authenticate::Profile;
 use tokio::net::ToSocketAddrs;
 
@@ -11,7 +11,7 @@ use crate::{
     connection::{listener::Listener, NewPlayer, ServerState},
     io::packet::{
         client::play::ClientPlayPacket,
-        server::play::{ChunkData, JoinGame, NetChunk, PlayerPositionAndLook, ServerPlayPacket},
+        server::play::{ChunkData, JoinGame, NetChunk, PlayerPositionAndLook, ServerPlayPacket, ChunkBitmap, MapChunkBulk, KeepAlive},
     },
 };
 
@@ -27,6 +27,11 @@ pub struct Server {
 }
 
 impl Server {
+    /// An iterator over connected clients.
+    pub fn clients(&self) -> impl Iterator<Item = &Client> {
+        self.clients.values()
+    }
+
     /// Bind this server to an address.
     pub async fn bind<A: ToSocketAddrs>(addr: A) -> anyhow::Result<Self> {
         let (send, recv) = flume::unbounded();
@@ -57,6 +62,8 @@ impl Server {
                     id,
                     sender: v.sender,
                     receiver: v.receiver,
+                    disconnected: Cell::new(false),
+                    last_keepalive_time: Cell::new(Instant::now()),
                 },
             );
             ids.push(id);
@@ -83,6 +90,10 @@ pub struct Client {
     pub profile: Arc<Profile>,
     /// This player's ID.
     pub id: NetworkID,
+    /// Has this client disconnected?
+    pub disconnected: Cell<bool>,
+    /// The last time we sent a keepalive.
+    pub last_keepalive_time: Cell<Instant>,
 
     /// Packet sender.
     pub sender: flume::Sender<ServerPlayPacket>,
@@ -91,6 +102,8 @@ pub struct Client {
 }
 
 impl Client {
+    pub const KEEPALIVE_TIME: Duration = Duration::from_secs(15);
+
     /// Set this client's position.
     pub fn set_position(&self, position: Position) -> anyhow::Result<()> {
         self.send_packet(ServerPlayPacket::PlayerPositionAndLook(
@@ -104,6 +117,25 @@ impl Client {
             },
         ))
     }
+
+    /// Sends a keep-alive, if necessary.
+    /// Returns `true` if one was sent.
+    pub fn send_keepalive(&self, id: i32) -> anyhow::Result<bool> {
+        if self.last_keepalive_time.get().elapsed() > Self::KEEPALIVE_TIME {
+            self.last_keepalive_time.set(Instant::now());
+            self.send_packet(ServerPlayPacket::KeepAlive(KeepAlive {
+                id
+            }))?;
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    pub fn is_disconnected(&self) -> bool {
+        self.disconnected.get() || self.sender.is_disconnected() || self.receiver.is_disconnected()
+    }
+
 
     /// Send the Join Game message to this player.
     pub fn join_game(
@@ -124,12 +156,14 @@ impl Client {
         }))
     }
 
-    /// Send a full chunk to this client.
-    pub fn send_chunk(&self, chunk: &Chunk) -> anyhow::Result<()> {
-        let mut primary_bit_map = 0u16;
-        for n in 0..16 {
-            if chunk.get_section(n).is_some() {
-                primary_bit_map |= 1 << n;
+    /// Convert a chunk to a network chunk.
+    fn chunk_to_net(chunk: &Chunk, to_send: ChunkBitmap, compressed: bool) -> (NetChunk, ChunkBitmap) {
+        let mut primary_bit_map = to_send;
+        for n in 0..ChunkSection::SECTIONS_PER_CHUNK {
+            if chunk.get_section(n as u8).is_none() && primary_bit_map.get(n).unwrap_or(false) {
+                log::debug!("Before: {0000000000000000:b}", primary_bit_map.0);
+                primary_bit_map.set(n, false);
+                log::debug!("After: {0000000000000000:b}", primary_bit_map.0);
             }
         }
 
@@ -141,6 +175,10 @@ impl Client {
         let mut biome_array = [0; 256];
         
         for section in chunk.sections() {
+            if !primary_bit_map.get(section.section_id as usize).unwrap() {
+                continue;
+            }
+            log::info!("DOING {:?}", section.section_id);
             block_types.extend_from_slice(&section.block_types);
             block_meta.backing_mut().extend_from_slice(section.block_meta.get_backing());
             block_light.backing_mut().extend_from_slice(section.block_light.get_backing());
@@ -149,33 +187,55 @@ impl Client {
             for _ in 0..(block_types.len() / 2) {
                 add_array.push(0);
             }
-
-            let mut n = 0;
-            for z in 0..Chunk::WIDTH {
-                for x in 0..Chunk::LENGTH {
-                    biome_array[n] = chunk.biomes()[x][z];
-                    n += 1;
-                }
+        }
+        let mut n = 0;
+        for z in 0..Chunk::WIDTH {
+            for x in 0..Chunk::LENGTH {
+                biome_array[n] = chunk.biomes()[x][z];
+                n += 1;
             }
         }
+        (NetChunk {
+            block_types,
+            block_meta,
+            block_light,
+            block_sky_light: Some(block_sky_light),
+            add_array: None, // FIXME sort out add
+            biome_array: Box::new(biome_array),
+            compressed
+        }, primary_bit_map)
+    }
 
+    /// Send a chunk to this client.
+    pub fn send_chunk(&self, chunk: &Chunk, to_send: ChunkBitmap) -> anyhow::Result<()> {
+        let (chunk_data, primary_bit_map) = Self::chunk_to_net(chunk, to_send, true);
 
         self.send_packet(ServerPlayPacket::ChunkData(ChunkData {
             chunk_x: chunk.position().x,
             chunk_z: chunk.position().z,
             ground_up_continuous: true,
             primary_bit_map,
-            add_bit_map: 0,
-            chunk_data: NetChunk {
-                block_types,
-                block_meta,
-                block_light,
-                block_sky_light: Some(block_sky_light),
-                add_array,
-                biome_array: Box::new(biome_array),
-            },
+            add_bit_map: ChunkBitmap::empty(),
+            chunk_data
         }))
     }
+
+    /// Send a bulk chunk packet to this client.
+    pub fn send_chunks(&self, handle: &ChunkStore, sky_light: bool, chunks: &[(ChunkPosition, ChunkBitmap)]) -> anyhow::Result<()> {
+        let mut chunk_data = Vec::new();
+        for (pos, bitmap) in chunks {
+            let data = handle.get_chunk(*pos)?;
+            let (data, bitmap) = Self::chunk_to_net(&*data.chunk()?, *bitmap, false);
+            chunk_data.push((*pos, data, bitmap, ChunkBitmap::empty()));
+        }
+        let data = MapChunkBulk {
+            chunk_column_count: chunks.len().try_into()?,
+            sky_light_sent: sky_light,
+            data: chunk_data, 
+        };
+        self.send_packet(ServerPlayPacket::MapChunkBulk(data))
+    }
+
 
     fn send_packet(&self, p: ServerPlayPacket) -> anyhow::Result<()> {
         self.sender.send(p)?;

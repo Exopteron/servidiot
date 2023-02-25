@@ -1,7 +1,11 @@
 use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
 
-use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
-use servidiot_primitives::chunk::Chunk;
+use parking_lot::{RwLockReadGuard, RwLock, RwLockWriteGuard};
+use thiserror::Error;
+
+
+use super::Chunk;
+
 
 
 struct ChunkHandleInner {
@@ -11,6 +15,14 @@ struct ChunkHandleInner {
 
 pub struct ChunkHandle(Arc<ChunkHandleInner>);
 
+#[derive(Error, Debug)]
+pub enum ChunkHandleError {
+    #[error("chunk is not loaded")]
+    Unloaded
+}
+
+pub type ChunkHandleResult<T> = std::result::Result<T, ChunkHandleError>;
+
 impl ChunkHandle {
     pub fn new(chunk: Chunk, is_loaded: bool) -> Self {
         Self(Arc::new(ChunkHandleInner { chunk: RwLock::new(chunk), is_loaded: AtomicBool::new(is_loaded) }))
@@ -18,22 +30,22 @@ impl ChunkHandle {
 
     /// Read access to the chunk. Returns `None`
     /// if the chunk is unloaded.
-    pub fn chunk(&self) -> Option<RwLockReadGuard<Chunk>> {
+    pub fn chunk(&self) -> ChunkHandleResult<RwLockReadGuard<Chunk>> {
         if !self.is_loaded() {
-            None
+            Err(ChunkHandleError::Unloaded)
         } else {
-            Some(self.0.chunk.read())
+            Ok(self.0.chunk.read())
         }
     }
 
 
     /// Write access to the chunk. Returns 
     /// `None` if the chunk is unloaded.
-    pub fn chunk_mut(&mut self) -> Option<RwLockWriteGuard<Chunk>> {
+    pub fn chunk_mut(&mut self) -> ChunkHandleResult<RwLockWriteGuard<Chunk>> {
         if !self.is_loaded() {
-            None
+            Err(ChunkHandleError::Unloaded)
         } else {
-            Some(self.0.chunk.write())
+            Ok(self.0.chunk.write())
         }
     }
 

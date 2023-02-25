@@ -8,7 +8,11 @@ use super::{system::SystemExecutor, resources::Resources};
 pub fn register_systems(s: &mut SystemExecutor<MinecraftServer>, resources: &mut Resources) {
 
     let mut world = World::new("".into());
-    world.load_chunk(0, ChunkPosition::new(0, 0)).unwrap();
+    for x in -4..4 {
+        for z in -4..4 {
+            world.load_chunk(0, ChunkPosition::new(x, z)).unwrap();
+        }
+    }
 
     s.group::<World>().add_system(|_state, world| {
         world.process()?;

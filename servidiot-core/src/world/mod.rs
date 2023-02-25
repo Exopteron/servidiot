@@ -2,9 +2,9 @@ use std::path::PathBuf;
 
 use ahash::AHashMap;
 use servidiot_anvil::WorldManager;
-use servidiot_primitives::position::ChunkPosition;
+use servidiot_primitives::{position::ChunkPosition, chunk::{store::ChunkStore, handle::ChunkHandle, Chunk}};
 
-use self::{region::{RegionThread, IdentifiedResponse, ChunkLoadResult, RegionThreadCommand}, chunk::{store::ChunkStore, handle::ChunkHandle}};
+use self::{region::{RegionThread, IdentifiedResponse, ChunkLoadResult, RegionThreadCommand}};
 
 mod region;
 mod chunk;
@@ -50,12 +50,20 @@ impl World {
     /// Schedules a chunk load. Returns `true` if the chunk is already loaded.
     pub fn load_chunk(&mut self, dimension: i32, position: ChunkPosition) -> anyhow::Result<bool> {
         let (thread, dim) = self.get_dimension(dimension)?;
-        if dim.get_chunk(position).is_some() {
+        if dim.get_chunk(position).is_ok() {
             return Ok(true);
         }
         thread.send_command(RegionThreadCommand::LoadChunk(position))?;
         Ok(false)
     }
+
+
+    /// Saves a chunk.
+    pub fn save_chunk(&mut self, dimension: i32, position: ChunkPosition, chunk: Chunk) -> anyhow::Result<()> {
+        let (thread, _) = self.get_dimension(dimension)?;
+        thread.send_command(RegionThreadCommand::SaveChunk(position, Box::new(chunk)))
+    }
+
 
     pub fn dimension_handle(&mut self, dimension: i32) -> anyhow::Result<ChunkStore> {
         let (_, dim) = self.get_dimension(dimension)?;

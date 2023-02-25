@@ -1,12 +1,16 @@
 use anyhow::bail;
-use byteorder::{ReadBytesExt, WriteBytesExt, BigEndian};
-use servidiot_primitives::player::Gamemode;
+use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+use nbt::{from_gzip_reader, to_gzip_writer};
+use servidiot_primitives::{
+    item::{InventorySlot, ItemStack},
+    player::Gamemode,
+};
 
 use super::{Readable, Serializable, Writable};
 
 use std::{
     error::Error,
-    io::Cursor,
+    io::{Cursor, Read},
     marker::PhantomData,
     ops::{Deref, DerefMut},
 };
@@ -64,9 +68,6 @@ impl Writable for u8 {
     }
 }
 
-
-
-
 impl Readable for f32 {
     fn read_from(data: &mut Cursor<&[u8]>) -> anyhow::Result<Self> {
         Ok(data.read_f32::<BigEndian>()?)
@@ -102,10 +103,6 @@ impl Writable for bool {
     }
 }
 
-
-
-
-
 #[derive(Debug)]
 pub struct VarInt(pub i32);
 impl VarInt {
@@ -113,6 +110,13 @@ impl VarInt {
     const CONTINUE_BIT: i32 = 0x80;
     const MAX_LEN: i32 = 32;
 }
+impl Deref for VarInt {
+    type Target = i32;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 impl Readable for VarInt {
     fn read_from(data: &mut Cursor<&[u8]>) -> anyhow::Result<Self> {
         let mut value = 0;
@@ -175,15 +179,13 @@ fn varint_test() {
     }
 
     macro_rules! test {
-        ($a:expr, $b:expr) => {
-            {
-                assert_eq!(varint($a), $b);
-                let n = $b.to_vec();
-                let mut c = Cursor::new(n.as_slice());
-                let v = VarInt::read_from(&mut c).unwrap();
-                assert_eq!(v.0, $a);
-            }       
-        };
+        ($a:expr, $b:expr) => {{
+            assert_eq!(varint($a), $b);
+            let n = $b.to_vec();
+            let mut c = Cursor::new(n.as_slice());
+            let v = VarInt::read_from(&mut c).unwrap();
+            assert_eq!(v.0, $a);
+        }};
     }
 
     let data = [42, 6, 64, 36, 0, 0];
@@ -197,15 +199,13 @@ fn varint_test() {
     test!(1, [0x01]);
     test!(2, [0x02]);
     test!(127, [0x7f]);
-    test!(128, [ 	0x80, 0x01]);
-    test!(255, [ 	0xff, 0x01]);
+    test!(128, [0x80, 0x01]);
+    test!(255, [0xff, 0x01]);
     test!(25565, [0xdd, 0xc7, 0x01]);
-    test!(2097151, [ 	0xff, 0xff, 0x7f]);
-    test!(2147483647, [ 	0xff, 0xff, 0xff, 0xff, 0x07]);
-    test!(-1, [ 	0xff, 0xff, 0xff, 0xff, 0x0f]);
+    test!(2097151, [0xff, 0xff, 0x7f]);
+    test!(2147483647, [0xff, 0xff, 0xff, 0xff, 0x07]);
+    test!(-1, [0xff, 0xff, 0xff, 0xff, 0x0f]);
     test!(-2147483648, [0x80, 0x80, 0x80, 0x80, 0x08]);
-
-    
 }
 
 #[derive(Debug)]
@@ -286,5 +286,54 @@ impl Readable for Gamemode {
 impl Writable for Gamemode {
     fn write_to(&self, target: &mut Vec<u8>) -> anyhow::Result<()> {
         self.encode().write_to(target)
+    }
+}
+
+impl Readable for InventorySlot {
+    fn read_from(data: &mut Cursor<&[u8]>) -> anyhow::Result<Self> {
+        let id = i16::read_from(data)?;
+        if id == -1 {
+            return Ok(Self::Empty);
+        }
+        let item_count = i8::read_from(data)?;
+        let item_meta = i16::read_from(data)?;
+        let nbt_len = i16::read_from(data)?;
+        let nbt = if nbt_len != -1 {
+            let mut nbt = vec![0; nbt_len as usize];
+            data.read_exact(&mut nbt)?;
+            Some(from_gzip_reader(&mut Cursor::new(nbt.as_slice()))?)
+        } else {
+            None
+        };
+        Ok(Self::Filled(ItemStack {
+            count: item_count,
+            meta: item_meta,
+            id,
+            nbt_data: nbt,
+        }))
+    }
+}
+
+impl Writable for InventorySlot {
+    fn write_to(&self, target: &mut Vec<u8>) -> anyhow::Result<()> {
+        match self {
+            InventorySlot::Empty => (-1i16).write_to(target),
+            InventorySlot::Filled(stack) => {
+                stack.id.write_to(target)?;
+                stack.count.write_to(target)?;
+                stack.meta.write_to(target)?;
+                match &stack.nbt_data {
+                    Some(data) => {
+                        let mut out = vec![];
+                        to_gzip_writer(&mut out, &data, None)?;
+                        let len: i16 = out.len().try_into()?;
+                        len.write_to(target)?;
+                        target.append(&mut out);
+                        Ok(())
+                    },
+                    None => (-1i16).write_to(target)
+                }
+            },
+        }
     }
 }

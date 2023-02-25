@@ -104,7 +104,7 @@ macro_rules! def_user_enum {
 
         impl crate::io::Readable for $enum_ident {
             fn read_from(data: &mut std::io::Cursor<&[u8]>) -> std::result::Result<Self, anyhow::Error> {
-                match <$enum_ty>::read_from(data)?.0 {
+                match <$enum_ty>::read_from(data)?.saturating_add(0) { // deref workaround
                     $(
                         $variant_discriminator => Ok(Self::$variant_ident),
                     )*

@@ -1,7 +1,10 @@
+#![feature(slice_flatten)]
 use std::{cell::RefCell, sync::Arc, rc::Rc};
 
 use ecs::{Ecs, system::{SystemExecutor, HasEcs, HasResources}, resources::Resources};
+use hecs::Entity;
 pub use servidiot_network::server::Server;
+use servidiot_network::server::id::NetworkID;
 
 
 pub mod ecs;
@@ -38,6 +41,17 @@ impl MinecraftServer {
         let s = self.systems.clone();
         let mut systems = s.borrow_mut();
         systems.run_systems(self);
+    }
+
+    /// Entity for an ID.
+    pub fn entity_for(&self, id: NetworkID) -> Option<Entity> {
+        let mut e = None;
+        for (en, v) in self.ecs.query::<&NetworkID>().iter() {
+            if *v == id {
+                e = Some(en);
+            }
+        }
+        e
     }
 }
 

@@ -7,6 +7,7 @@ pub mod resources;
 pub mod system;
 pub mod systems;
 pub mod entities;
+pub mod events;
 
 pub struct Ecs {
     world: World,

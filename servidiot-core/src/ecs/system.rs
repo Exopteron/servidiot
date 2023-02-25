@@ -79,9 +79,10 @@ pub struct GroupBuilder<'a, State: HasResources, R> {
     p: PhantomData<R>,
 }
 impl<'a, State: HasResources + 'static, R: 'static> GroupBuilder<'a, State, R> {
-    pub fn add_system<F: FnMut(&mut State, &mut R) -> SysResult + 'static>(&mut self, f: F) {
+    pub fn add_system<F: FnMut(&mut State, &mut R) -> SysResult + 'static>(&mut self, f: F) -> &mut Self {
         self.executor
             .add_system_with_name(type_name::<F>().to_string(), Self::make_fn(f));
+        self
     }
 
     fn make_fn(

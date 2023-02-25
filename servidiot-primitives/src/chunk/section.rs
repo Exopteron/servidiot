@@ -26,6 +26,20 @@ impl ChunkSection {
     pub const WIDTH: usize = 16;
     pub const LENGTH: usize = 16;
 
+    pub const SECTIONS_PER_CHUNK: usize = 16;
+
+    pub fn empty(id: u8) -> Self {
+        let full_size = Self::HEIGHT * Self::WIDTH * Self::LENGTH;
+        Self {
+            section_id: id,
+            skylight: NibbleVec::new_from(vec![0; full_size / 2]),
+            block_light: NibbleVec::new_from(vec![0; full_size / 2]),
+            block_meta: NibbleVec::new_from(vec![0; full_size / 2]),
+            block_types: vec![0; full_size],
+            block_types_add: None
+        }
+    }
+
     /// Converts a position within this section to an index.
     /// Returns `None` if the position is out of bounds.
     const fn position_to_index(x: usize, y: usize, z: usize) -> Option<usize> {

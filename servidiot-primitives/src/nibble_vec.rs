@@ -15,6 +15,15 @@ impl Default for NibbleVec {
     }
 }
 impl NibbleVec {
+    pub fn new_from(v: Vec<u8>) -> Self {
+        Self {
+            flag: false,
+            backing: unsafe {
+                std::mem::transmute(v)
+            }
+        }
+    }
+
     pub fn new() -> Self {
         Self { flag: false, backing: Vec::new() }
     }

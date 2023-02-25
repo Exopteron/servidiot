@@ -1,13 +1,27 @@
+use std::ops::Deref;
+
 use crate::{block::BlockID, position::ChunkPosition};
 
 use self::section::ChunkSection;
 
+pub mod handle;
 pub mod section;
+pub mod store;
+
+/// A generic chunk accessor.
+pub trait ChunkAccessor {
+    type ChunkType<'a>: Deref<Target = Chunk>
+    where
+        Self: 'a;
+
+    fn get_chunk(&self, position: ChunkPosition) -> anyhow::Result<Self::ChunkType<'_>>;
+}
 
 /// Represents a Minecraft chunk.
 pub struct Chunk {
     biomes: [[u8; 16]; 16],
-    sections: [Option<ChunkSection>; 16],
+    heightmap: [[u8; 16]; 16],
+    sections: [Option<ChunkSection>; ChunkSection::SECTIONS_PER_CHUNK],
     position: ChunkPosition,
 }
 
@@ -34,6 +48,7 @@ impl Chunk {
     pub fn new(position: ChunkPosition) -> Self {
         Self {
             position,
+            heightmap: [[0; 16]; 16],
             biomes: [[0; 16]; 16],
             sections: [(); 16].map(|_| None),
         }
@@ -46,6 +61,11 @@ impl Chunk {
     /// Iterator over sections.
     pub fn sections(&self) -> impl Iterator<Item = &ChunkSection> {
         self.sections.iter().flatten()
+    }
+
+    /// Owned iterator over sections.
+    pub fn into_sections(self) -> impl Iterator<Item = ChunkSection> {
+        self.sections.into_iter().flatten()
     }
 
     /// Set a chunk section.
@@ -63,6 +83,13 @@ impl Chunk {
     }
     pub fn biomes_mut(&mut self) -> &mut [[u8; 16]; 16] {
         &mut self.biomes
+    }
+
+    pub fn heightmap(&self) -> &[[u8; 16]; 16] {
+        &self.heightmap
+    }
+    pub fn heightmap_mut(&mut self) -> &mut [[u8; 16]; 16] {
+        &mut self.heightmap
     }
 
     /// Gets the block at this index.

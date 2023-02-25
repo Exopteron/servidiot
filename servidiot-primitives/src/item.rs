@@ -2,7 +2,7 @@ use nbt::Value;
 use serde::{Serialize, Deserialize};
 
 /// Represents a Minecraft item.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct ItemStack {
     /// Number of items stacked in this item. 
     #[serde(rename = "Count")]
@@ -15,4 +15,17 @@ pub struct ItemStack {
     /// This item's NBT data.
     #[serde(rename = "tag")]
     pub nbt_data: Option<Value>
+}
+
+/// Represents an inventory slot.
+#[derive(PartialEq, Clone, Debug)]
+pub enum InventorySlot {
+    Empty,
+    Filled(ItemStack)
+}
+
+impl InventorySlot {
+    pub fn is_empty(&self) -> bool {
+        matches!(self, InventorySlot::Empty)
+    }
 }

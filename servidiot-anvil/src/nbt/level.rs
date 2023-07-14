@@ -1,5 +1,5 @@
 use ahash::HashMap;
-use nbt::{Value};
+use nbt::Value;
 use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Serialize, Deserialize)]

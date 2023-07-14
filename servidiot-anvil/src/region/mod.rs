@@ -2,7 +2,7 @@ use std::{
     fs::File,
     io,
     path::PathBuf,
-    time::{SystemTime, SystemTimeError, UNIX_EPOCH, Duration},
+    time::{Duration, SystemTime, SystemTimeError, UNIX_EPOCH},
 };
 
 use ahash::AHashMap;
@@ -36,6 +36,19 @@ pub enum RegionManagerError {
     #[error("Time error: {0}")]
     SystemTimeError(SystemTimeError),
 }
+
+impl From<io::Error> for RegionManagerError {
+    fn from(value: io::Error) -> Self {
+        Self::IOError(value)
+    }
+}
+
+impl From<ChunkError> for RegionManagerError {
+    fn from(value: ChunkError) -> Self {
+        Self::ChunkError(value)
+    }
+}
+
 pub type RegionManagerResult<T> = std::result::Result<T, RegionManagerError>;
 
 impl RegionManager {
@@ -50,14 +63,13 @@ impl RegionManager {
     }
 
     /// Loads chunk data. Returns data and timestamp.
-    pub fn load_chunk(&mut self, position: ChunkPosition) -> RegionManagerResult<(ChunkRoot, SystemTime)> {
-        self.load_region(position.region())?;
-        let (data, time) = self.cache
-            .get_mut(&position.region())
-            .expect("should be present by this point")
-            .read_chunk(position)
-            .map_err(RegionManagerError::ChunkError)?;
-        
+    pub fn load_chunk(
+        &mut self,
+        position: ChunkPosition,
+    ) -> RegionManagerResult<(ChunkRoot, SystemTime)> {
+        let (region, _) = self.load_region(position.region())?;
+        let (data, time) = region.read_chunk(position)?;
+
         Ok((data, UNIX_EPOCH + Duration::from_secs(time as u64)))
     }
 
@@ -67,12 +79,11 @@ impl RegionManager {
         position: ChunkPosition,
         data: ChunkRoot,
     ) -> RegionManagerResult<()> {
-        self.load_region(position.region())?;
-        self.cache
-            .get_mut(&position.region())
-            .expect("should be present by this point")
+        let compression = self.compression_method;
+        let (region, _) = self.load_region(position.region())?;
+        region
             .write_chunk(
-                self.compression_method,
+                compression,
                 position,
                 SystemTime::now()
                     .duration_since(UNIX_EPOCH)
@@ -86,7 +97,7 @@ impl RegionManager {
     /// Flush the whole cache.
     pub fn flush_cache(&mut self) -> RegionManagerResult<()> {
         for (_, data) in &mut self.cache {
-            data.flush().map_err(RegionManagerError::IOError)?;
+            data.flush()?;
         }
         Ok(())
     }
@@ -95,7 +106,7 @@ impl RegionManager {
     /// `true` if the region was present in cache.
     pub fn unload_region(&mut self, position: RegionPosition) -> RegionManagerResult<bool> {
         if let Some(mut v) = self.cache.remove(&position) {
-            v.flush().map_err(RegionManagerError::IOError)?;
+            v.flush()?;
             Ok(true)
         } else {
             Ok(false)
@@ -104,36 +115,29 @@ impl RegionManager {
 
     /// Caches a region. Returns `true` if
     /// the region was already cached.
-    pub fn load_region(&mut self, position: RegionPosition) -> RegionManagerResult<bool> {
+    pub fn load_region(
+        &mut self,
+        position: RegionPosition,
+    ) -> RegionManagerResult<(&mut RegionFile, bool)> {
         if self.cache.contains_key(&position) {
-            return Ok(true);
-        }
-        let mut path = self.directory.clone();
-        path.push(format!("r.{}.{}.mca", position.x, position.z));
-
-        if !path.try_exists().map_err(RegionManagerError::IOError)? {
-            let file = RegionFile::create(
-                File::options()
-                    .read(true)
-                    .write(true)
-                    .create(true)
-                    .open(path)
-                    .map_err(RegionManagerError::IOError)?,
-            )
-            .map_err(RegionManagerError::IOError)?;
-            self.cache.insert(position, file);
+            return Ok((self.cache.get_mut(&position).unwrap(), true));
         } else {
-            let file = RegionFile::open(
-                File::options()
-                    .read(true)
-                    .write(true)
-                    .open(path)
-                    .map_err(RegionManagerError::IOError)?,
-            )
-            .map_err(RegionManagerError::IOError)?;
+            let mut path = self.directory.clone();
+            path.push(format!("r.{}.{}.mca", position.x, position.z));
+
+            let mut opts = File::options();
+            opts.read(true).write(true);
+
+            let f = if !path.try_exists()? {
+                opts.create(true);
+                RegionFile::create
+            } else {
+                RegionFile::open
+            };
+
+            let file = f(opts.open(path)?)?;
             self.cache.insert(position, file);
+            Ok((self.cache.get_mut(&position).unwrap(), true))
         }
-        Ok(false)
     }
 }
-

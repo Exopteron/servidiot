@@ -29,6 +29,17 @@ impl ChunkStore {
         Self(Arc::new(RwLock::new(ChunkStoreInner { chunks: Default::default() })))
     }
 
+    pub fn chunks(&self) -> Vec<ChunkPosition> {
+        self.0.read().chunks.keys().copied().collect::<Vec<_>>()
+    }
+
+    pub fn remove_chunk(&self, position: ChunkPosition) -> anyhow::Result<ChunkHandle> {
+        match self.0.write().chunks.remove(&position) {
+            Some(v) => Ok(v),
+            None => bail!("{position} not present")
+        }
+    }
+
     pub fn get_chunk(&self, position: ChunkPosition) -> anyhow::Result<ChunkHandle> {
         match self.0.read().chunks.get(&position).cloned() {
             Some(v) => Ok(v),

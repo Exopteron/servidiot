@@ -55,7 +55,7 @@ packet_enum!(ServerPlayPacket {
 pub struct MapChunkBulk {
     pub chunk_column_count: i16,
     pub sky_light_sent: bool,
-    pub data: Vec<(ChunkPosition, NetChunk, ChunkBitmap, ChunkBitmap)>,
+    pub data: Vec<(ChunkPosition, NetChunkData, ChunkBitmap, ChunkBitmap)>,
 }
 impl Writable for MapChunkBulk {
     fn write_to(&self, target: &mut Vec<u8>) -> anyhow::Result<()> {
@@ -158,9 +158,8 @@ impl Readable for ChunkBitmap {
         Ok(Self(u16::read_from(data)?))
     }
 }
-
 #[derive(Debug)]
-pub struct NetChunk {
+pub struct NetChunkData {
     pub block_types: Vec<u8>,
     pub block_meta: NibbleVec,
     pub block_light: NibbleVec,
@@ -169,7 +168,7 @@ pub struct NetChunk {
     pub biome_array: Box<[u8; 256]>,
     pub compressed: bool
 }
-impl Writable for NetChunk {
+impl Writable for NetChunkData {
     fn write_to(&self, target: &mut Vec<u8>) -> anyhow::Result<()> {
         let mut buf = vec![];
         buf.extend_from_slice(&self.block_types);
@@ -191,6 +190,27 @@ impl Writable for NetChunk {
             target.append(&mut buf);
         }
         Ok(())
+    }
+}
+
+
+#[derive(Debug)]
+pub enum NetChunk {
+    Present(NetChunkData),
+    NotPresent
+}
+impl Writable for NetChunk {
+    fn write_to(&self, target: &mut Vec<u8>) -> anyhow::Result<()> {
+        match self {
+            Self::Present(v) => v.write_to(target),
+            Self::NotPresent => {
+                let mut compressed = compress_to_vec_zlib(&[], 0);
+                let len: i32 = (compressed.len().try_into())?;
+                len.write_to(target)?;
+                target.append(&mut compressed);
+                Ok(())
+            }
+        }
     }
 }
 

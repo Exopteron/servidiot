@@ -168,7 +168,7 @@ impl Writer {
     /// Write a packet to this writer.
     pub async fn write<P: Writable>(&mut self, value: P) -> anyhow::Result<()> {
         self.codec.write_packet(value, &mut self.writing_buf)?;
-        log::debug!("Writing {:?}", self.writing_buf);
+        //log::debug!("Writing {:?}", self.writing_buf);
         self.writer.write_all(&self.writing_buf).await?;
         self.writing_buf.truncate(0);
         Ok(())

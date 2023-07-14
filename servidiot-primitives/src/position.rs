@@ -2,7 +2,7 @@
 
 use std::{
     fmt::{Debug, Display},
-    ops::{Deref},
+    ops::Deref,
 };
 
 use thiserror::Error;
@@ -42,11 +42,21 @@ impl BlockPosition {
 }
 
 /// Represents what world and dimension an object resides in.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Location {
     /// The multiworld world ID the object resides in.
     pub world: u32,
     /// The dimension the object resides in.
     pub dimension: i32,
+}
+
+impl Location {
+    pub const fn new(world: u32, dimension: i32) -> Self {
+        Self {
+            world,
+            dimension
+        }
+    }
 }
 
 
@@ -71,6 +81,11 @@ impl Position {
             pitch,
             on_ground,
         }
+    }
+
+    /// This position as a block position.
+    pub fn block(&self) -> BlockPosition {
+        BlockPosition::new(self.x.round() as i32, self.y.round() as i32, self.z.round() as i32)
     }
 }
 
@@ -187,7 +202,7 @@ impl ChunkPosition {
 }
 
 /// Represents the position of a region.
-#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct RegionPosition {
     pub x: i16,
     pub z: i16

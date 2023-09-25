@@ -4,5 +4,6 @@ members = [
     "servidiot-anvil",
     "servidiot-yggdrasil",
     "servidiot-network",
-    "servidiot-ecs"
+    "servidiot-ecs",
+    "servidiot-bin"
 ]

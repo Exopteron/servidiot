@@ -133,7 +133,7 @@ impl Reader {
         loop {
             self.reader.readable().await?;
             let read = match self.reader.try_read(&mut self.buf) {
-                Ok(v) if v == 0 => bail!("EOF"),
+                Ok(0) => bail!("EOF"),
                 Ok(v) => v,
                 Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => continue,
                 Err(e) => return Err(e.into()),

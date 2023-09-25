@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use rsa::{RsaPrivateKey};
+use rsa::RsaPrivateKey;
 use servidiot_yggdrasil::authenticate::Profile;
 
 use crate::io::packet::{server::play::ServerPlayPacket, client::play::ClientPlayPacket};

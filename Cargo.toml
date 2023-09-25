@@ -3,5 +3,6 @@ members = [
     "servidiot-primitives",
     "servidiot-anvil",
     "servidiot-yggdrasil",
-    "servidiot-network"
+    "servidiot-network",
+    "servidiot-ecs"
 ]

@@ -1,0 +1,16 @@
+[package]
+name = "servidiot-ecs"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+hecs = { version = "0.10", features = ["macros"] }
+paste = "1"
+rayon = "1.8"
+fnv = "1"
+flume = "0.11"
+anyhow = "1"
+oneshot = "0.1.6"
+parking_lot = "0.12"

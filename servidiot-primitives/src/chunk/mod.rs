@@ -54,6 +54,20 @@ impl Chunk {
         }
     }
 
+    /// Generates a bitmap for all present sections in this chunk.
+    pub fn bitmap(&self) -> ChunkBitmap {
+        let mut bitmap = ChunkBitmap::empty();
+
+        for (idx, value) in self.sections.iter().enumerate() {
+            if value.is_some() {
+                bitmap.set(idx, true);
+            }
+        }
+
+        bitmap
+    }
+
+
     pub fn position(&self) -> ChunkPosition {
         self.position
     }
@@ -98,7 +112,7 @@ impl Chunk {
         self.sections[section].as_ref()?.block_type_at(x, y, z)
     }
 
-    /// Sets a block ID within this section.
+    /// Sets a block ID within this chunk.
     pub fn set_block_type_at(&mut self, x: usize, y: usize, z: usize, ty: BlockID) -> Option<()> {
         let (x, y, z, section) = Self::position_to_index(x, y, z)?;
         self.sections[section]
@@ -134,5 +148,62 @@ impl Chunk {
         self.sections[section]
             .as_mut()?
             .set_block_light_at(x, y, z, value)
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ChunkBitmap(pub u16);
+impl ChunkBitmap {
+    /// Returns a full bitmap.
+    pub const fn full() -> Self {
+        Self(u16::MAX)
+    }
+
+    /// Returns an empty bitmap.
+    pub const fn empty() -> Self {
+        Self(0)
+    }
+
+    /// Sets a section within this bitmap.
+    /// Returns `None` if `section` is out of bounds.
+    pub fn set(&mut self, section: usize, value: bool) -> Option<()> {
+        if section > 15 {
+            return None;
+        }
+        if value {
+            self.0 |= 1 << (section);
+        } else {
+            self.0 &= !(1 << (section));
+        }
+        Some(())
+    }
+
+    /// Test a section within this bitmap.
+    /// Returns `None` if `section` is out of bounds.
+    pub const fn get(&self, section: usize) -> Option<bool> {
+        if section > 15 {
+            None
+        } else {
+            Some((self.0 & (1 << ( section))) != 0)
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ChunkBitmap;
+
+    #[test]
+    #[allow(clippy::needless_range_loop)]
+    fn bitmap_test() {
+        let mut bitmap = ChunkBitmap::empty();
+        let test = [0, 1, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 0];
+        for i in 0..15 {
+            bitmap.set(i, test[i] == 1);
+        }
+
+        for i in 0..15 {
+            assert_eq!(bitmap.get(i).unwrap(), test[i] == 1);
+        }
     }
 }

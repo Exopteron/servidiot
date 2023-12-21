@@ -1,5 +1,5 @@
 use anyhow::bail;
-use rand::Rng;
+use rand::{Rng, rngs::OsRng};
 use rsa::{Pkcs1v15Encrypt, pkcs8::EncodePublicKey};
 use servidiot_yggdrasil::authenticate::{MinecraftAuthenticator, Profile};
 
@@ -51,7 +51,7 @@ pub async fn perform_handshake(worker: &mut Worker) -> anyhow::Result<Connection
     let verify_token = rand::thread_rng().gen::<[u8; 4]>();
 
 
-    log::info!("Sending enc request");
+    log::info!("Sending EncryptionRequest");
     worker
         .writer
         .write(ServerLoginPacket::EncryptionRequest(EncryptionRequest {
@@ -72,18 +72,19 @@ pub async fn perform_handshake(worker: &mut Worker) -> anyhow::Result<Connection
             bail!("unexpected packet in login sequence");
     };
 
-    log::info!("Got response");
+    log::info!("Got EncryptionResponse");
     let encrypted_secret = encryption_response.shared_secret.0;
     let encrypted_token = encryption_response.verify_token.0;
 
     let shared_secret_vec = worker
         .server_state
         .rsa_key
-        .decrypt(Pkcs1v15Encrypt, &encrypted_secret)?;
+        .decrypt(Pkcs1v15Encrypt, &encrypted_secret).unwrap_or(OsRng.gen::<[u8; 16]>().to_vec()); // proceed with random data in the case of a decryption failure to avoid being an oracle.
+
     let decrypted_token = worker
         .server_state
         .rsa_key
-        .decrypt(Pkcs1v15Encrypt, &encrypted_token)?;
+        .decrypt(Pkcs1v15Encrypt, &encrypted_token).unwrap_or(OsRng.gen::<[u8; 4]>().to_vec());
     if decrypted_token != verify_token {
         bail!("invalid crypto verification token");
     }

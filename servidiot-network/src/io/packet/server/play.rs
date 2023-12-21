@@ -1,6 +1,6 @@
 use anyhow::bail;
 use miniz_oxide::deflate::compress_to_vec_zlib;
-use servidiot_primitives::{nibble_vec::NibbleVec, player::Gamemode, position::ChunkPosition};
+use servidiot_primitives::{nibble_vec::NibbleVec, player::Gamemode, position::ChunkPosition, chunk::ChunkBitmap};
 
 use crate::io::{
     packet::{def_packets, packet_enum},
@@ -91,61 +91,6 @@ impl Readable for MapChunkBulk {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct ChunkBitmap(pub u16);
-impl ChunkBitmap {
-    /// Returns a full bitmap.
-    pub const fn full() -> Self {
-        Self(u16::MAX)
-    }
-
-    /// Returns an empty bitmap.
-    pub const fn empty() -> Self {
-        Self(0)
-    }
-
-    /// Sets a section within this bitmap.
-    /// Returns `None` if `section` is out of bounds.
-    pub fn set(&mut self, section: usize, value: bool) -> Option<()> {
-        if section > 15 {
-            return None;
-        }
-        if value {
-            self.0 |= 1 << (section);
-        } else {
-            self.0 &= !(1 << (section));
-        }
-        Some(())
-    }
-
-    /// Test a section within this bitmap.
-    /// Returns `None` if `section` is out of bounds.
-    pub const fn get(&self, section: usize) -> Option<bool> {
-        if section > 15 {
-            None
-        } else {
-            Some((self.0 & (1 << ( section))) != 0)
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::ChunkBitmap;
-
-    #[test]
-    fn bitmap_test() {
-        let mut bitmap = ChunkBitmap::empty();
-        let test = [0, 1, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 0];
-        for i in 0..15 {
-            bitmap.set(i, test[i] == 1);
-        }
-
-        for i in 0..15 {
-            assert_eq!(bitmap.get(i).unwrap(), test[i] == 1);
-        }
-    }
-}
 
 impl Writable for ChunkBitmap {
     fn write_to(&self, target: &mut Vec<u8>) -> anyhow::Result<()> {

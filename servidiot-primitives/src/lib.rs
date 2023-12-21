@@ -1,4 +1,4 @@
-#![feature(const_option)]
+#![feature(const_option, step_trait)]
 //! Minecraft primitive types.
 
 pub mod position;

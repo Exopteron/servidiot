@@ -1,15 +1,15 @@
 use std::{
-    cell::Cell,
-    sync::Arc,
+    sync::{Arc, atomic::{AtomicBool, Ordering}},
     time::{Duration, Instant},
 };
 
 
 use anyhow::bail;
 use fnv::FnvHashMap;
+use parking_lot::Mutex;
 use rsa::RsaPrivateKey;
 use servidiot_primitives::{
-    chunk::{section::ChunkSection, Chunk},
+    chunk::{section::ChunkSection, Chunk, ChunkBitmap},
     nibble_vec::NibbleVec,
     player::Gamemode,
     position::{ChunkPosition, Position},
@@ -22,7 +22,7 @@ use crate::{
     io::packet::{
         client::play::ClientPlayPacket,
         server::play::{
-            ChunkBitmap, ChunkData, JoinGame, KeepAlive, NetChunk,
+            ChunkData, JoinGame, KeepAlive, NetChunk,
             PlayerPositionAndLook, ServerPlayPacket, NetChunkData,
         },
     },
@@ -75,9 +75,9 @@ impl Server {
                     id,
                     sender: v.sender,
                     receiver: v.receiver,
-                    disconnected: Cell::new(false),
-                    last_keepalive_time: Cell::new(Instant::now()),
-                    client_known_position: Cell::new(None),
+                    disconnected: AtomicBool::new(false),
+                    last_keepalive_time: Mutex::new(Instant::now()),
+                    client_known_position: Mutex::new(None),
                 },
             );
             ids.push(id);
@@ -105,11 +105,11 @@ pub struct Client {
     /// This player's ID.
     pub id: NetworkID,
     /// Has this client disconnected?
-    pub disconnected: Cell<bool>,
+    pub disconnected: AtomicBool,
     /// The last time we sent a keepalive.
-    pub last_keepalive_time: Cell<Instant>,
+    pub last_keepalive_time: Mutex<Instant>,
     /// The position the client thinks we are at.
-    pub client_known_position: Cell<Option<Position>>,
+    pub client_known_position: Mutex<Option<Position>>,
     /// Packet sender.
     pub sender: flume::Sender<ServerPlayPacket>,
     /// Packet receiver.
@@ -126,20 +126,20 @@ impl Client {
     }
 
     pub fn set_client_known_position(&self, position: Position) {
-        self.client_known_position.set(Some(position));
+        *self.client_known_position.lock() = Some(position);
     }
 
     pub fn get_client_known_position(&self) -> Option<Position> {
-        self.client_known_position.get()
+        *self.client_known_position.lock()
     }
 
     pub fn client_knows_position(&self) -> bool {
-        self.client_known_position.get().is_some()
+        self.client_known_position.lock().is_some()
     }
 
     /// Set this client's position.
     pub fn set_position(&self, position: Position) -> anyhow::Result<()> {
-        self.client_known_position.set(Some(position));
+        *self.client_known_position.lock() = Some(position);
         self.send_packet(ServerPlayPacket::PlayerPositionAndLook(
             PlayerPositionAndLook {
                 x: position.x,
@@ -155,8 +155,9 @@ impl Client {
     /// Sends a keep-alive, if necessary.
     /// Returns `true` if one was sent.
     pub fn send_keepalive(&self, id: i32) -> anyhow::Result<bool> {
-        if self.last_keepalive_time.get().elapsed() > Self::KEEPALIVE_TIME {
-            self.last_keepalive_time.set(Instant::now());
+        let mut last_keepalive_time = self.last_keepalive_time.lock();
+        if last_keepalive_time.elapsed() > Self::KEEPALIVE_TIME {
+            *last_keepalive_time = Instant::now();
             self.send_packet(ServerPlayPacket::KeepAlive(KeepAlive { id }))?;
             Ok(true)
         } else {
@@ -165,7 +166,7 @@ impl Client {
     }
 
     pub fn is_disconnected(&self) -> bool {
-        self.disconnected.get() || self.sender.is_disconnected() || self.receiver.is_disconnected()
+        self.disconnected.load(Ordering::SeqCst) || self.sender.is_disconnected() || self.receiver.is_disconnected()
     }
 
     /// Send the Join Game message to this player.

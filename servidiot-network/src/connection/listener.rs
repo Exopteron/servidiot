@@ -36,9 +36,7 @@ impl Listener {
     /// Internal run method.
     async fn run(self) {
         loop {
-            println!("rannin");
             if self.new_players.is_disconnected() {
-                println!("bak");
                 break;
             }
             match self.listener.accept().await {

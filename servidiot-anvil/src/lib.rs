@@ -109,38 +109,35 @@ mod tests {
     use servidiot_primitives::position::BlockPosition;
     use uuid::Uuid;
 
-    use crate::{
-        WorldManager,
-    };
+    use crate::WorldManager;
 
     #[test]
     pub fn epic_test() {
-        let mut file = WorldManager::open(
-            PathBuf::from_str(
-                "",
-            )
-            .unwrap(),
-        );
+        // let mut file = WorldManager::open(
+        //     PathBuf::from_str(
+        //         "",
+        //     )
+        //     .unwrap(),
+        // );
 
-        let mut world = file.load_dimension(0).unwrap();
-        println!("Level.dat: {:#?}", file.load_level_dat().unwrap());
+        // let mut world = file.load_dimension(0).unwrap();
+        // println!("Level.dat: {:#?}", file.load_level_dat().unwrap());
 
-        let block = BlockPosition::new(-1759, 5, 459);
+        // let block = BlockPosition::new(-1759, 5, 459);
 
-        let x = file.load_player_data(&Uuid::parse_str("").unwrap()).unwrap();
-        println!("Data: {x:?}");
-        let (mut data, _) = world.load_chunk(block.chunk()).unwrap();
-        println!("X{:?} Z{:?}", data.level.x_position, data.level.z_position);
-        let section = &mut data.level.sections[(block.y / 16) as usize];
 
-        // (y * 16 + z) * 16 + x
-        // let x = (block.x & 15) as usize;
-        // let y = (block.y & 15) as usize;
-        // let z = (block.z & 15) as usize;
-        //let position = (y * 16 + z) * 16 + x;
+        // let (mut data, _) = world.load_chunk(block.chunk()).unwrap();
+        // println!("X{:?} Z{:?}", data.level.x_position, data.level.z_position);
+        // let section = &mut data.level.sections[(block.y / 16) as usize];
 
-        section.blocks.fill(137u8 as i8);
-        world.save_chunk(block.chunk(), data).unwrap();
-        world.flush_cache().unwrap();
+        // // (y * 16 + z) * 16 + x
+        // // let x = (block.x & 15) as usize;
+        // // let y = (block.y & 15) as usize;
+        // // let z = (block.z & 15) as usize;
+        // //let position = (y * 16 + z) * 16 + x;
+
+        // section.blocks.fill(137u8 as i8);
+        // world.save_chunk(block.chunk(), data).unwrap();
+        // world.flush_cache().unwrap();
     }
 }

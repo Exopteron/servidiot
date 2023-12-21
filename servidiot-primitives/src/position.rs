@@ -1,5 +1,6 @@
 //! Position primitives.
 
+pub mod iteration;
 use std::{
     fmt::{Debug, Display},
     ops::Deref,
@@ -8,13 +9,17 @@ use std::{
 use thiserror::Error;
 
 /// The position of some block.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct BlockPosition {
     pub x: i32,
     pub y: i32,
     pub z: i32,
 }
-
+impl Display for BlockPosition {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "BlockPosition(x = {}, y = {}, z = {})", self.x, self.y, self.z)
+    }
+}
 impl BlockPosition {
     /// Creates a new `BlockPosition` from a
     /// set of coordinates.
@@ -38,6 +43,15 @@ impl BlockPosition {
     /// position resides in.
     pub fn chunk(&self) -> ChunkPosition {
         ChunkPosition::new(self.x >> 4, self.z >> 4)
+    }
+
+    /// Offsets this position by (x, y, z).
+    pub fn offset(&self, x: i32, y: i32, z: i32) -> Self {
+        Self {
+            x: self.x.wrapping_add(x),
+            y: self.y.wrapping_add(y),
+            z: self.z.wrapping_add(z)
+        }
     }
 }
 
@@ -86,6 +100,12 @@ impl Position {
     /// This position as a block position.
     pub fn block(&self) -> BlockPosition {
         BlockPosition::new(self.x.round() as i32, self.y.round() as i32, self.z.round() as i32)
+    }
+    
+
+    /// This position as a chunk position.
+    pub fn chunk(&self) -> ChunkPosition {
+        self.block().chunk()
     }
 }
 
@@ -198,6 +218,15 @@ impl ChunkPosition {
     /// The region this chunk resides in.
     pub fn region(&self) -> RegionPosition {
         RegionPosition::new((self.x >> 5) as i16, (self.z >> 5) as i16)
+    }
+
+
+    /// Offset this position by (x, y).
+    pub fn offset(&self, x: i32, z: i32) -> Self {
+        Self {
+            x: self.x + x,
+            z: self.z + z
+        }
     }
 }
 

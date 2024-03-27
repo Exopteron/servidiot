@@ -32,6 +32,14 @@ impl DerefMut for ByteArray {
     }
 }
 
+impl ByteArray {
+    pub fn as_u8_array(&self) -> &[u8] {
+        unsafe {
+            std::slice::from_raw_parts(self.0.as_slice().as_ptr().cast::<u8>(), self.0.len())
+        }
+    }
+}
+
 
 /// Int array helper type.
 #[repr(transparent)]
@@ -175,3 +183,4 @@ pub struct TileTick {
     /// Z position
     pub z: i32
 }
+

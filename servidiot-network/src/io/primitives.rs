@@ -3,14 +3,17 @@ use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use nbt::{from_gzip_reader, to_gzip_writer};
 use servidiot_primitives::{
     item::{InventorySlot, ItemStack},
+    metadata::{Metadata, MetadataItem, MetadataTypeKey},
+    number::{FixedPoint, RotationFraction360},
     player::Gamemode,
+    position::BlockPosition,
 };
 
 use super::{Readable, Serializable, Writable};
 
 use std::{
     error::Error,
-    io::{Cursor, Read},
+    io::{Cursor, Read, Write},
     marker::PhantomData,
     ops::{Deref, DerefMut},
 };
@@ -330,10 +333,119 @@ impl Writable for InventorySlot {
                         len.write_to(target)?;
                         target.append(&mut out);
                         Ok(())
-                    },
-                    None => (-1i16).write_to(target)
+                    }
+                    None => (-1i16).write_to(target),
                 }
-            },
+            }
         }
+    }
+}
+
+impl Writable for RotationFraction360 {
+    fn write_to(&self, buffer: &mut Vec<u8>) -> anyhow::Result<()> {
+        let num = ff((self.0 * 256.0) / 360.);
+        if (num as i8) < 0 {
+            //log::info!("Num {} Casted {} Modulo {}", num, num as i8, num % i8::MAX as i32);
+        }
+        //num = num.min(0);
+        (num as u8).write_to(buffer)?;
+        Ok(())
+    }
+}
+fn ff(input: f32) -> i32 {
+    let v = input as i32;
+    if input < v as f32 {
+        v - 1
+    } else {
+        v
+    }
+}
+impl Readable for RotationFraction360 {
+    fn read_from(data: &mut Cursor<&[u8]>) -> anyhow::Result<Self> {
+        let num = i8::read_from(data)? as i32;
+        let float = ((num * 360) as f32) / 256.;
+        Ok(Self(float))
+    }
+}
+
+impl Writable for FixedPoint {
+    fn write_to(&self, target: &mut Vec<u8>) -> anyhow::Result<()> {
+        target.write_all(&self.to_be_bytes())?;
+        Ok(())
+    }
+}
+
+impl Readable for FixedPoint {
+    fn read_from(data: &mut Cursor<&[u8]>) -> anyhow::Result<Self> {
+        let mut read = [0; 4];
+        data.read_exact(&mut read)?;
+        Ok(Self::from_be_bytes(read))
+    }
+}
+
+impl Writable for Metadata {
+    fn write_to(&self, target: &mut Vec<u8>) -> anyhow::Result<()> {
+        for (key, item) in self.values() {
+            target.write_all(&[key | ((item.type_key() as u8) << 5)])?;
+
+            match item {
+                MetadataItem::Byte(v) => v.write_to(target)?,
+                MetadataItem::Short(v) => v.write_to(target)?,
+                MetadataItem::Int(v) => v.write_to(target)?,
+                MetadataItem::Float(v) => v.write_to(target)?,
+                MetadataItem::String(v) => v.write_to(target)?,
+                MetadataItem::Slot => todo!(),
+                MetadataItem::Position(v) => {
+                    v.x.write_to(target)?;
+                    v.y.write_to(target)?;
+                    v.z.write_to(target)?;
+                }
+            }
+        }
+        target.write_all(&[127])?; // end marker
+        Ok(())
+    }
+}
+
+impl Readable for Metadata {
+    fn read_from(data: &mut Cursor<&[u8]>) -> anyhow::Result<Self> {
+        let mut values = Metadata::default();
+        loop {
+            let k = u8::read_from(data)?;
+            if k == 127 {
+                break;
+            }
+
+            let key_value = k & 0x1F;
+
+            match k >> 5 {
+                v if v == MetadataTypeKey::Byte as u8 => {
+                    values.insert(key_value, MetadataItem::Byte(u8::read_from(data)?))
+                }
+                v if v == MetadataTypeKey::Short as u8 => {
+                    values.insert(key_value, MetadataItem::Short(i16::read_from(data)?))
+                }
+                v if v == MetadataTypeKey::Int as u8 => {
+                    values.insert(key_value, MetadataItem::Int(i32::read_from(data)?))
+                }
+                v if v == MetadataTypeKey::Float as u8 => {
+                    values.insert(key_value, MetadataItem::Float(f32::read_from(data)?))
+                }
+                v if v == MetadataTypeKey::String as u8 => {
+                    values.insert(key_value, MetadataItem::String(String::read_from(data)?))
+                }
+                v if v == MetadataTypeKey::Slot as u8 => todo!(),
+                v if v == MetadataTypeKey::Position as u8 => values.insert(
+                    key_value,
+                    MetadataItem::Position(BlockPosition::new(
+                        i32::read_from(data)?,
+                        i32::read_from(data)?,
+                        i32::read_from(data)?,
+                    )),
+                ),
+                v => bail!("unknown metadata type {}", v),
+            }
+        }
+        Ok(values)
     }
 }

@@ -62,7 +62,7 @@ impl MinecraftCodec {
     pub fn read_packet<P: Readable>(&mut self) -> anyhow::Result<Option<P>> {
         let mut cursor = Cursor::new(self.received_buf.as_slice());
         if let Ok(v) = VarInt::read_from(&mut cursor) {
-            let packet_length = v.0.try_into()?;
+            let packet_length: usize = v.0.try_into()?;
             if cursor.remaining_slice().len() >= packet_length {
                 // we have enough data
 

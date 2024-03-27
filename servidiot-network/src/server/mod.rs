@@ -4,28 +4,26 @@ use std::{
 };
 
 
+use ahash::HashSet;
 use anyhow::bail;
+use az::{Az, SaturatingAs, UnwrappedCast};
 use fnv::FnvHashMap;
 use parking_lot::Mutex;
-use rsa::RsaPrivateKey;
+use rsa::{pss, RsaPrivateKey};
 use servidiot_primitives::{
-    chunk::{section::ChunkSection, Chunk, ChunkBitmap},
-    nibble_vec::NibbleVec,
-    player::Gamemode,
-    position::{ChunkPosition, Position},
+    chunk::{section::ChunkSection, Chunk, ChunkBitmap}, metadata::Metadata, nibble_vec::NibbleVec, number::{FixedPoint, RotationFraction360}, player::Gamemode, position::{ChunkPosition, Position, ChunkLocation}
 };
 use servidiot_yggdrasil::authenticate::Profile;
 use tokio::net::ToSocketAddrs;
 
 use crate::{
     connection::{listener::Listener, NewPlayer, ServerState},
-    io::packet::{
+    io::{packet::{
         client::play::ClientPlayPacket,
         server::play::{
-            ChunkData, JoinGame, KeepAlive, NetChunk,
-            PlayerPositionAndLook, ServerPlayPacket, NetChunkData,
+            ChunkData, DestroyEntities, EntityTeleport, JoinGame, KeepAlive, NetChunk, NetChunkData, PlayerPositionAndLook, ServerPlayPacket, SpawnPlayer
         },
-    },
+    }, VarInt, LengthPrefixedVec},
 };
 
 use self::id::NetworkID;
@@ -76,6 +74,9 @@ impl Server {
                     sender: v.sender,
                     receiver: v.receiver,
                     disconnected: AtomicBool::new(false),
+                    client_known_chunks: Mutex::new(HashSet::default()),
+                    client_known_entities: Mutex::new(HashSet::default()),
+                    client_waiting_chunks: Mutex::new(HashSet::default()),
                     last_keepalive_time: Mutex::new(Instant::now()),
                     client_known_position: Mutex::new(None),
                 },
@@ -110,6 +111,12 @@ pub struct Client {
     pub last_keepalive_time: Mutex<Instant>,
     /// The position the client thinks we are at.
     pub client_known_position: Mutex<Option<Position>>,
+    /// The chunks the client has been sent.
+    pub client_known_chunks: Mutex<HashSet<ChunkPosition>>,
+    /// The entities the client has been sent.
+    pub client_known_entities: Mutex<HashSet<NetworkID>>,
+    /// The chunks the client is waiting on.
+    pub client_waiting_chunks: Mutex<HashSet<ChunkLocation>>,
     /// Packet sender.
     pub sender: flume::Sender<ServerPlayPacket>,
     /// Packet receiver.
@@ -135,6 +142,10 @@ impl Client {
 
     pub fn client_knows_position(&self) -> bool {
         self.client_known_position.lock().is_some()
+    }
+
+    pub fn client_knows_entity(&self, id: NetworkID) -> bool {
+        self.client_known_entities.lock().contains(&id)
     }
 
     /// Set this client's position.
@@ -253,6 +264,7 @@ impl Client {
 
     /// Send a chunk to this client.
     pub fn send_chunk(&self, chunk: &Chunk, to_send: ChunkBitmap) -> anyhow::Result<()> {
+
         let (chunk_data, primary_bit_map) = Self::chunk_to_net(chunk, to_send, true);
 
         self.send_packet(ServerPlayPacket::ChunkData(ChunkData {
@@ -274,6 +286,49 @@ impl Client {
             primary_bit_map: ChunkBitmap::empty(),
             add_bit_map: ChunkBitmap::empty(),
             chunk_data: NetChunk::NotPresent,
+        }))
+    }
+
+    /// Send a player to the client.
+    pub fn send_player(&self, id: NetworkID, profile: &Profile, position: Position, meta: Metadata) -> anyhow::Result<()> {
+
+        self.client_known_entities.lock().insert(id);
+        use az::Az;
+        self.send_packet(ServerPlayPacket::SpawnPlayer(SpawnPlayer {
+            eid: VarInt(id.0),
+            uuid: profile.id.to_string(),
+            name: profile.name.clone(),
+            data: LengthPrefixedVec::new(vec![]),
+            x: position.x.saturating_as(),
+            y: position.y.saturating_as(),
+            z: position.z.saturating_as(),
+            yaw: RotationFraction360(position.yaw),
+            pitch: RotationFraction360(position.pitch),
+            current_item: 0, // TODO items
+            metadata: meta,
+        }))
+    }
+
+    pub fn unload_entities(&self, ids: &[NetworkID]) -> anyhow::Result<()> {
+        {
+            let mut known = self.client_known_entities.lock();
+            for id in ids {
+                known.remove(id);
+            }
+        }
+        self.send_packet(ServerPlayPacket::DestroyEntities(DestroyEntities {
+            list: LengthPrefixedVec::new(ids.iter().map(|v| v.0).collect())
+        }))
+    }
+
+    pub fn send_position(&self, id: NetworkID, position: Position) -> anyhow::Result<()> {
+        self.send_packet(ServerPlayPacket::EntityTeleport(EntityTeleport {
+            eid: id.0,
+            x: position.x.saturating_as(),
+            y: position.y.saturating_as(),
+            z: position.z.saturating_as(),
+            yaw: RotationFraction360(position.yaw),
+            pitch: RotationFraction360(position.yaw),
         }))
     }
 

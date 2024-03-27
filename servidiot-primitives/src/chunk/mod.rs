@@ -1,21 +1,9 @@
-use std::ops::Deref;
-
 use crate::{block::BlockID, position::ChunkPosition};
 
 use self::section::ChunkSection;
 
-pub mod handle;
 pub mod section;
-pub mod store;
-
-/// A generic chunk accessor.
-pub trait ChunkAccessor {
-    type ChunkType<'a>: Deref<Target = Chunk>
-    where
-        Self: 'a;
-
-    fn get_chunk(&self, position: ChunkPosition) -> anyhow::Result<Self::ChunkType<'_>>;
-}
+// pub mod store;
 
 /// Represents a Minecraft chunk.
 pub struct Chunk {
@@ -150,6 +138,7 @@ impl Chunk {
             .set_block_light_at(x, y, z, value)
     }
 }
+
 
 #[derive(Debug, Clone, Copy)]
 pub struct ChunkBitmap(pub u16);

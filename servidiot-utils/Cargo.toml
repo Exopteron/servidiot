@@ -1,0 +1,15 @@
+[package]
+name = "servidiot-utils"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rand = "0.8"
+parking_lot = "0.12"
+flume = "0.11"
+anyhow = "1"
+tracing = "0.1"
+tokio = { version = "1", features = ["rt"] }
+

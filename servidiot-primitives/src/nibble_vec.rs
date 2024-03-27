@@ -1,3 +1,4 @@
+#![allow(clippy::cast_sign_loss, clippy::cast_possible_wrap)]
 use serde::{Deserialize, Serialize};
 
 /// A vec of nibbles.
@@ -61,8 +62,13 @@ impl NibbleVec {
     pub fn is_empty(&self) -> bool {
         self.backing.is_empty()
     }
+
+    #[allow(clippy::missing_panics_doc)]
     pub fn push(&mut self, v: u8) {
         if self.flag {
+            if self.backing.is_empty() {
+                unreachable!()
+            }
             let v2 = self.backing.pop().unwrap() as u8;
             self.backing.push(make_nibble_byte(v2, v).unwrap() as i8);
         } else {
@@ -72,13 +78,13 @@ impl NibbleVec {
     }
     pub fn get_backing(&self) -> &[u8] {
         unsafe {
-            std::mem::transmute(self.backing.as_slice())
+            &*(self.backing.as_slice() as *const [i8] as *const [u8])
         }
     }
 
     pub fn backing_mut(&mut self) -> &mut Vec<u8> {
         unsafe {
-            std::mem::transmute(&mut self.backing)
+            &mut *(std::ptr::addr_of_mut!(self.backing).cast::<Vec<u8>>())
         }
     }
 }
@@ -88,15 +94,15 @@ fn make_nibble_byte(mut a: u8, mut b: u8) -> Option<u8> {
         return None;
     }
     b <<= 4;
-    b &= 0b11110000;
-    a &= 0b00001111;
+    b &= 0b1111_0000;
+    a &= 0b0000_1111;
     Some(a | b)
 }
 #[inline(always)]
 fn decompress_nibble(input: u8) -> (u8, u8) {
-    let b = input & 0b11110000;
+    let b = input & 0b1111_0000;
     let b = b >> 4;
-    let a = input & 0b00001111;
+    let a = input & 0b0000_1111;
     (a, b)
 }
 

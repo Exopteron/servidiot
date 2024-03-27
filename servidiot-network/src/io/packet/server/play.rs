@@ -1,10 +1,10 @@
 use anyhow::bail;
 use miniz_oxide::deflate::compress_to_vec_zlib;
-use servidiot_primitives::{nibble_vec::NibbleVec, player::Gamemode, position::ChunkPosition, chunk::ChunkBitmap};
+use servidiot_primitives::{chunk::ChunkBitmap, metadata::Metadata, nibble_vec::NibbleVec, number::{FixedPoint, RotationFraction360}, player::Gamemode, position::ChunkPosition};
 
 use crate::io::{
     packet::{def_packets, packet_enum},
-    Readable, Writable,
+    Readable, Writable, VarInt, VarIntPrefixedByteArray, LengthPrefixedVec,
 };
 
 def_packets! {
@@ -40,6 +40,35 @@ def_packets! {
     },
     KeepAlive {
         id: i32
+    },
+    DataEntry {
+        name: String,
+        value: String,
+        signature: String
+    },
+    SpawnPlayer {
+        eid: VarInt,
+        uuid: String,
+        name: String,
+        data: LengthPrefixedVec<VarInt, DataEntry>,
+        x: FixedPoint,
+        y: FixedPoint,
+        z: FixedPoint,
+        yaw: RotationFraction360,
+        pitch: RotationFraction360,
+        current_item: i16,
+        metadata: Metadata
+    },
+    DestroyEntities {
+        list: LengthPrefixedVec<u8, i32>
+    },
+    EntityTeleport {
+        eid: i32,
+        x: FixedPoint,
+        y: FixedPoint,
+        z: FixedPoint,
+        yaw: RotationFraction360,
+        pitch: RotationFraction360
     }
 }
 
@@ -48,7 +77,10 @@ packet_enum!(ServerPlayPacket {
     PlayerPositionAndLook = 0x08,
     JoinGame = 0x01,
     ChunkData = 0x21,
-    MapChunkBulk = 0x26
+    MapChunkBulk = 0x26,
+    SpawnPlayer = 0x0C,
+    DestroyEntities = 0x13,
+    EntityTeleport = 0x18
 });
 
 #[derive(Debug)]

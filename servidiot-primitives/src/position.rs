@@ -1,5 +1,5 @@
 //! Position primitives.
-
+#![allow(clippy::module_name_repetitions)]
 pub mod iteration;
 use std::{
     fmt::{Debug, Display},
@@ -56,7 +56,7 @@ impl BlockPosition {
 }
 
 /// Represents what world and dimension an object resides in.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub struct Location {
     /// The multiworld world ID the object resides in.
     pub world: u32,
@@ -99,6 +99,7 @@ impl Position {
 
     /// This position as a block position.
     pub fn block(&self) -> BlockPosition {
+        #[allow(clippy::cast_possible_truncation)]
         BlockPosition::new(self.x.round() as i32, self.y.round() as i32, self.z.round() as i32)
     }
     
@@ -106,6 +107,19 @@ impl Position {
     /// This position as a chunk position.
     pub fn chunk(&self) -> ChunkPosition {
         self.block().chunk()
+    }
+}
+/// Represents the location of an entity.
+#[derive(Clone, Copy, PartialEq, PartialOrd, Debug)]
+pub struct EntityLocation {
+    pub position: Position,
+    pub location: Location
+}
+impl Deref for EntityLocation {
+    type Target = Position;
+
+    fn deref(&self) -> &Self::Target {
+        &self.position
     }
 }
 
@@ -150,6 +164,7 @@ impl Debug for CheckedBlockPosition {
 impl CheckedBlockPosition {
     /// Converts a `BlockPosition` into a `CheckedBlockPosition`.
     ///
+    /// # Errors
     /// Returns `Ok` if `position` is within possible bounds.
     /// Returns `Err` otherwise.
     pub fn convert(position: BlockPosition) -> std::result::Result<Self, BlockPositionError> {
@@ -159,6 +174,7 @@ impl CheckedBlockPosition {
     /// Creates a new `CheckedBlockPosition` from a
     /// set of coordinates.
     ///
+    /// # Errors
     /// Returns `Ok` if the coordinates are within
     /// possible bounds. Returns `Err` otherwise.
     pub fn new(x: i32, y: i32, z: i32) -> std::result::Result<Self, BlockPositionError> {
@@ -217,6 +233,7 @@ impl ChunkPosition {
 
     /// The region this chunk resides in.
     pub fn region(&self) -> RegionPosition {
+        #[allow(clippy::cast_possible_truncation)]
         RegionPosition::new((self.x >> 5) as i16, (self.z >> 5) as i16)
     }
 
@@ -230,6 +247,12 @@ impl ChunkPosition {
     }
 }
 
+/// Represents the position of a chunk in multiple worlds/dimensions.
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ChunkLocation {
+    pub position: ChunkPosition,
+    pub location: Location
+}
 /// Represents the position of a region.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct RegionPosition {

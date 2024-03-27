@@ -47,6 +47,7 @@ impl BlockID {
     /// Extracts the ID and add pair out of this ID.
     pub const fn to_add_pair(&self) -> (u8, u8) {
         let id = (self.0 & 0xff) as u8;
+        #[allow(clippy::cast_possible_truncation)]
         let add = (self.0 & 0xf00) as u8;
         (id, add)
     }

@@ -7,3 +7,5 @@ pub mod item;
 pub mod player;
 pub mod nibble_vec;
 pub mod chunk;
+pub mod number;
+pub mod metadata;

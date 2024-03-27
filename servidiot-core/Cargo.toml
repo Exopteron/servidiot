@@ -1,0 +1,20 @@
+[package]
+name = "servidiot-core"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+servidiot-ecs = { path = "../servidiot-ecs" }
+servidiot-utils = { path = "../servidiot-utils" }
+servidiot-network = { path = "../servidiot-network" }
+servidiot-anvil = { path = "../servidiot-anvil" }
+servidiot-primitives = { path = "../servidiot-primitives" }
+servidiot-yggdrasil = { path = "../servidiot-yggdrasil" }
+tokio = { version = "1", features = ["full"] }
+thiserror = "1"
+anyhow = "1"
+tracing = "0.1"
+rayon = "1.8"
+flume = "0.10"

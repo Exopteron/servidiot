@@ -2,6 +2,7 @@ use serde::{Serialize, Deserialize};
 
 
 /// Player abilities.
+#[allow(clippy::struct_excessive_bools, clippy::module_name_repetitions)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PlayerAbilities {
     /// The player's walking speed.

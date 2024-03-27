@@ -2,22 +2,46 @@ use super::BlockPosition;
 
 
 
+pub struct StepIterator<T: BoundedStep> {
+    start: T,
+    end: T,
+    steps: usize,
+    steps_between: usize
+}
+impl<T: BoundedStep> StepIterator<T> {
+    pub fn new(start: T, end: T) -> Self {
+        Self {
+            start,
+            end,
+            steps: 0,
+            steps_between: start.steps_between(&end)
+        }
+    }
+}
+
+impl<T: BoundedStep> Iterator for StepIterator<T> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.steps >= self.steps_between {
+            None
+        } else {
+            self.steps += 1;
+            Some(self.start.advanced_to(&self.end, self.steps - 1))
+        }
+    }
+}
+
+/// Something that can progress some number of steps between a start and an end point.
 pub trait BoundedStep: Copy {
     fn steps_between(&self, end: &Self) -> usize;
 
     fn advanced_to(&self, end: &Self, steps: usize) -> Self;
 }
 
-/// Represents an iterator over block positions in a cube.
-pub struct BlockPositionIterator {
-    start: BlockPosition,
-    end: BlockPosition,
-    current: BlockPosition,
-}
-
 impl BoundedStep for BlockPosition {
     fn steps_between(&self, end: &Self) -> usize {
-        (self.x.abs_diff(end.x).max(1) * self.y.abs_diff(end.y).max(1) * self.z.abs_diff(end.z).max(1)) as usize
+        (self.x.abs_diff(end.x).wrapping_add(1) * self.y.abs_diff(end.y).wrapping_add(1) * self.z.abs_diff(end.z).wrapping_add(1)) as usize
     }
 
     fn advanced_to(&self, end: &Self, steps: usize) -> Self {
@@ -29,7 +53,7 @@ impl BoundedStep for BlockPosition {
 
         new.x = self.x + (steps % end.x);
         new.y = self.y + (steps / end.x) % end.y;
-        new.z = self.z + ((steps / end.y) / end.z) % end.z;
+        new.z = self.z + ((steps / end.x) / end.y) % end.z;
 
         new
     }
@@ -37,19 +61,22 @@ impl BoundedStep for BlockPosition {
 }
 
 
+
+
 #[cfg(test)]
 mod tests {
     use crate::position::BlockPosition;
 
-    use super::BoundedStep;
+    use super::StepIterator;
 
     #[test]
     fn iter_test() {
         let start = BlockPosition::new(0, 0, 0);
-        let end = BlockPosition::new(0, 0, 3);
+        let end = BlockPosition::new(3, 3, 3);
 
-        for i in 0..start.steps_between(&end) {
-            println!("Val: {}", start.advanced_to(&end, i));
+        
+        for i in StepIterator::new(start, end) {
+            println!("Val: {}", i);
         }   
     }
 }

@@ -1,13 +1,14 @@
 use std::{
-    any::{type_name, Any, TypeId},
-    collections::HashMap, cell::{RefCell, Ref, RefMut},
+    any::{type_name, Any}, cell::{RefCell, Ref, RefMut},
 };
+
+use crate::typemap::TypeMap;
 
 
 
 /// A struct holding arbitrary resources.
 pub struct Resources {
-    resources: HashMap<TypeId, RefCell<Box<dyn Any>>>,
+    resources: TypeMap<RefCell<Box<dyn Any>>>,
 }
 
 impl Default for Resources {
@@ -19,13 +20,13 @@ impl Resources {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            resources: HashMap::default(),
+            resources: Default::default(),
         }
     }
 
     pub fn add<T: 'static>(&mut self, value: T) {
         self.resources
-            .insert(TypeId::of::<T>(), RefCell::new(Box::new(value)));
+            .insert::<T>(RefCell::new(Box::new(value)));
     }
 
     /// Immutably gets a value of type `T` from this resource collection.
@@ -35,7 +36,7 @@ impl Resources {
     pub fn get<T: 'static>(&self) -> Ref<T> {
         Ref::map(
             self.resources
-                .get(&TypeId::of::<T>())
+                .get::<T>()
                 .unwrap_or_else(|| {
                     panic!(
                         "Tried to get type {} which is not present in Resources",
@@ -54,7 +55,7 @@ impl Resources {
     pub fn get_mut<T: 'static>(&self) -> RefMut<T> {
         RefMut::map(
             self.resources
-                .get(&TypeId::of::<T>())
+                .get::<T>()
                 .unwrap_or_else(|| {
                     panic!(
                         "Tried to get type {} which is not present in Resources",

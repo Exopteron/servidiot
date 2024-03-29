@@ -65,7 +65,7 @@ impl WorldManager {
 
 
     /// Loads a dimension.
-    pub fn load_dimension(&mut self, dimension: DimensionID) -> WorldManagerResult<RegionManager> {
+    pub fn load_dimension(&self, dimension: DimensionID) -> WorldManagerResult<RegionManager> {
         let mut dir = self.directory.clone();
         if dimension != 0 {
             dir.push(format!("DIM{dimension}"));

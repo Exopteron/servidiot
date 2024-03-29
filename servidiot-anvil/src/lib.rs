@@ -4,6 +4,7 @@ use crate::nbt::level::LevelRoot;
 use crate::nbt::player::PlayerData;
 use ::nbt::{from_gzip_reader, to_gzip_writer};
 use region::{file::CompressionType, RegionManager, RegionManagerError};
+use servidiot_primitives::position::DimensionID;
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -64,7 +65,7 @@ impl WorldManager {
 
 
     /// Loads a dimension.
-    pub fn load_dimension(&mut self, dimension: i32) -> WorldManagerResult<RegionManager> {
+    pub fn load_dimension(&mut self, dimension: DimensionID) -> WorldManagerResult<RegionManager> {
         let mut dir = self.directory.clone();
         if dimension != 0 {
             dir.push(format!("DIM{dimension}"));

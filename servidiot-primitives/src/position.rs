@@ -55,17 +55,22 @@ impl BlockPosition {
     }
 }
 
+
+/// Dimension ID type.
+pub type DimensionID = i32;
+
+
 /// Represents what world and dimension an object resides in.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub struct Location {
     /// The multiworld world ID the object resides in.
     pub world: u32,
     /// The dimension the object resides in.
-    pub dimension: i32,
+    pub dimension: DimensionID,
 }
 
 impl Location {
-    pub const fn new(world: u32, dimension: i32) -> Self {
+    pub const fn new(world: u32, dimension: DimensionID) -> Self {
         Self {
             world,
             dimension

@@ -250,7 +250,12 @@ impl ChunkPosition {
             z: self.z + z
         }
     }
+
+    pub fn distance_squared(&self, other: &Self) -> i32 {
+        (other.x - self.x).pow(2) + (other.z - self.z).pow(2)
+    }
 }
+
 
 /// Represents the position of a chunk in multiple worlds/dimensions.
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]

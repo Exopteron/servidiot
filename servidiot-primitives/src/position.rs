@@ -258,6 +258,16 @@ pub struct ChunkLocation {
     pub position: ChunkPosition,
     pub location: Location
 }
+
+impl ChunkLocation {
+    pub fn new(position: ChunkPosition, location: Location) -> Self {
+        Self {
+            position,
+            location
+        }
+    }
+}
+
 /// Represents the position of a region.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct RegionPosition {

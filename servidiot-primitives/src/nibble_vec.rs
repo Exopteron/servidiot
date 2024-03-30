@@ -2,7 +2,7 @@
 use serde::{Deserialize, Serialize};
 
 /// A vec of nibbles.
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, PartialOrd)]
 #[serde(transparent)]
 pub struct NibbleVec {
     #[serde(skip)]

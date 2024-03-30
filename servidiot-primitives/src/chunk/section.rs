@@ -5,7 +5,7 @@ use crate::{nibble_vec::NibbleVec, block::BlockID};
 
 
 /// Represents a Minecraft chunk section.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ChunkSection {
     /// This section's Y level.
     pub section_id: u8,

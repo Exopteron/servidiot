@@ -6,7 +6,7 @@ pub mod section;
 // pub mod store;
 
 /// Represents a Minecraft chunk.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Chunk {
     biomes: [[u8; 16]; 16],
     heightmap: [[u8; 16]; 16],

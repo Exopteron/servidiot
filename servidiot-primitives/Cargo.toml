@@ -11,5 +11,5 @@ hematite-nbt = "0.5.2"
 serde = { version = "1", features = ["derive"] }
 anyhow = "1"
 parking_lot = "0.12.1"
-ahash = "0.8"
+ahash = "0.8.11"
 fixed = { version = "1.24", features = ["serde-str", "serde"] }

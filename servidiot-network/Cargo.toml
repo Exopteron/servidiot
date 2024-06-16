@@ -23,6 +23,6 @@ bitflags = "1"
 uuid = { version = "1", features = ["serde"] }
 miniz_oxide = "0.7.1"
 hematite-nbt = "0.5.2"
-ahash = "0.8"
+ahash = "0.8.11"
 parking_lot = "0.12"
 az = "1.2.1"

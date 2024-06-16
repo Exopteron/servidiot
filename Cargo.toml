@@ -5,7 +5,9 @@ members = [
     "servidiot-yggdrasil",
     "servidiot-network",
     "servidiot-ecs",
-    "servidiot-utils"
-, "servidiot-testaround", "servidiot-core"]
+    "servidiot-utils", 
+    "servidiot-testaround", 
+    "servidiot-core", 
+    "servidiot-world"]
 resolver = "2"
 

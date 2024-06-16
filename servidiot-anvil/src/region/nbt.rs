@@ -78,7 +78,7 @@ pub struct Level {
     pub last_update: i64,
     /// Unknown.
     #[serde(rename = "LightPopulated")]
-    pub light_populated: bool,
+    pub light_populated: Option<bool>,
     /// Indicates whether the terrain in this chunk has been 
     /// populated with special things. (Ores, special blocks, 
     /// trees, dungeons, flowers, waterfalls, etc.) 
@@ -86,7 +86,7 @@ pub struct Level {
     pub terrain_populated: bool,
     /// Likely a chunk version tag.
     #[serde(rename = "V")]
-    pub version: i8,
+    pub version: Option<i8>,
     /// The cumulative number of ticks 
     /// players have been in this chunk.
     #[serde(rename = "InhabitedTime")]

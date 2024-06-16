@@ -1,0 +1,18 @@
+[package]
+name = "servidiot-world"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+servidiot-utils = { path = "../servidiot-utils" }
+servidiot-primitives = { path = "../servidiot-primitives" }
+servidiot-anvil = { path = "../servidiot-anvil" }
+rayon = "1.1"
+fxhash = "0.2"
+flume = "0.11"
+tracing = "0.1"
+thiserror = "1"
+anyhow = "1"
+slotmap = "1"
